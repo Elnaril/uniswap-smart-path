@@ -1,0 +1,11 @@
+-r requirements_install.txt
+
+coverage
+flake8
+isort
+mypy
+pytest
+tox
+
+build
+twine

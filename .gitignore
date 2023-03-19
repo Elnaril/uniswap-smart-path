@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+
+.idea/
+
+build/
+dist/
+virtualenv/
+uniswap-smart-path.egg-info/
+
+analysis/
+notes/
+
+.coverage
+.mypy_cache
+.pytest_cache
+.tox

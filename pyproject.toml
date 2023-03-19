@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uniswap-smart-path"
+version = "0.1.0.dev0"
+authors = [
+  { name="Elnaril", email="elnaril_dev@caramail.com" },
+]
+description = "Find the path from v2 and v3 pools to swap with the best price, including gas fees"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+]
+license = {text = "MIT License"}
+dependencies = [
+  "web3>=6.0.0b11",
+]
+keywords = ["blockchain", "ethereum", "uniswap", "universal router", "swap", "path", "route", "pools"]
+
+[tool.setuptools]
+packages = ["uniswap-smart-path"]
+
+[project.urls]
+"Homepage" = "https://github.com/Elnaril/uniswap-smart-path"
+"Bug Tracker" = "https://github.com/Elnaril/uniswap-smart-path/issues"
+"Fiverr" = "https://www.fiverr.com/freelancers/elnaril"
