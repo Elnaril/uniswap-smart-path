@@ -1,0 +1,31 @@
+name: Continous Integration
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    environment:
+      name: CI
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install tox and any other packages
+      run: pip install tox
+    - name: Run tox
+      run: |
+        export RPC_ENDPOINT=${{ secrets.RPC_ENDPOINT }}
+        tox
