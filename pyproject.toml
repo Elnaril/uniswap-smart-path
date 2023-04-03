@@ -30,7 +30,7 @@ dependencies = [
 keywords = ["blockchain", "ethereum", "uniswap", "universal router", "swap", "path", "route", "pools"]
 
 [tool.setuptools]
-packages = ["uniswap-smart-path"]
+packages = ["uniswap_smart_path"]
 
 [project.urls]
 "Homepage" = "https://github.com/Elnaril/uniswap-smart-path"

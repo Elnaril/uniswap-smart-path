@@ -6,7 +6,7 @@ __pycache__/
 build/
 dist/
 virtualenv/
-uniswap-smart-path.egg-info/
+uniswap_smart_path.egg-info/
 
 analysis/
 notes/
