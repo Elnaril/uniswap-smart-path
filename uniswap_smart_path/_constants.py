@@ -26,6 +26,12 @@ pivot_tokens: Dict[int, Tuple[Token, ...]] = {
         Token(Web3.to_checksum_address("0x6b175474e89094c44da98b954eedeac495271d0f"), "DAI", 18),
         Token(Web3.to_checksum_address("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"), "WETH", 18),
     ),
+    1337: (
+        Token(Web3.to_checksum_address("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), "USDC", 6),
+        Token(Web3.to_checksum_address("0xdac17f958d2ee523a2206206994597c13d831ec7"), "USDT", 6),
+        Token(Web3.to_checksum_address("0x6b175474e89094c44da98b954eedeac495271d0f"), "DAI", 18),
+        Token(Web3.to_checksum_address("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"), "WETH", 18),
+    ),
 }
 
 v3_pool_fees = (100, 500, 3000, 10000)

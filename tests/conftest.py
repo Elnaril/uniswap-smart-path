@@ -15,6 +15,7 @@ tokens = {
     "FAKE": Token(AsyncWeb3.to_checksum_address("0xffffffffffffffffffffffffffffffffffffffff"), "FAKE", 18),
     "UNI": Token(AsyncWeb3.to_checksum_address("0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984"), "UNI", 18),
     "LINK": Token(AsyncWeb3.to_checksum_address("0x514910771AF9Ca656af840dff83E8264EcF986CA"), "LINK", 18),
+    "MKR": Token(AsyncWeb3.to_checksum_address("0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2"), "???", 18),
 }
 
 

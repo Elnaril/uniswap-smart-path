@@ -44,6 +44,7 @@ async def test_create(w3, rpc_endpoint, uniswapv2_address, uniswapv3_quoter_addr
     "token, expected_exception",
     (
         (tokens["WETH"], None),
+        (tokens["MKR"], None),
         (tokens["FAKE"], BadFunctionCallOutput),
         (Token(Web3.to_checksum_address("0" * 40), "NotAToken", 0), BadFunctionCallOutput)
     )

@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from enum import Enum
+import logging
 from typing import (
     Any,
     cast,
@@ -18,6 +19,7 @@ from typing import (
 from uniswap_universal_router_decoder import RouterCodec
 from web3 import AsyncWeb3
 from web3.contract import AsyncContract
+from web3.exceptions import ContractLogicError
 from web3.types import (
     ChecksumAddress,
     Wei,
@@ -26,6 +28,7 @@ from web3.types import (
 from ._utilities import to_wei
 
 
+logger = logging.getLogger(__name__)
 codec = RouterCodec()
 
 
@@ -72,7 +75,7 @@ class PoolPath(Protocol[OrderedPool, PathList]):
 class V2PoolPath(PoolPath[V2OrderedPool, V2PathList]):
     contract: AsyncContract = AsyncWeb3().eth.contract(AsyncWeb3.to_checksum_address("0" * 40))
 
-    def __init__(self, pools: Sequence[V2OrderedPool], weight: int = 100) -> None:
+    def __init__(self, pools: Sequence[V2OrderedPool]) -> None:
         self.pools = pools
         self.path = self._build_path()
 
@@ -92,11 +95,14 @@ class V2PoolPath(PoolPath[V2OrderedPool, V2PathList]):
         quote = await self.contract.functions.getAmountsOut(amount_in, self.get_path()).call()
         return to_wei(quote[-1])
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}: {self.path}"
+
 
 class V3PoolPath(PoolPath[V3OrderedPool, V3PathList]):
     contract: AsyncContract = AsyncWeb3().eth.contract(AsyncWeb3.to_checksum_address("0" * 40))
 
-    def __init__(self, pools: Sequence[V3OrderedPool], weight: int = 100) -> None:
+    def __init__(self, pools: Sequence[V3OrderedPool]) -> None:
         self.pools = pools
         self.path = self._build_path()
 
@@ -117,6 +123,9 @@ class V3PoolPath(PoolPath[V3OrderedPool, V3PathList]):
         encoded_path = codec.encode.v3_path("V3_SWAP_EXACT_IN", self.get_path())
         quote = await self.contract.functions.quoteExactInput(encoded_path, amount_in).call()
         return to_wei(quote[0])
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}: {self.path}"
 
 
 @dataclass(frozen=True)
@@ -150,8 +159,11 @@ class MixedWeightedPath:
             w_p.pool_path.get_amount_out(Wei(amount * w_p.weight // 100))
             for w_p in self.weighted_paths
         ]
-        self.values = await asyncio.gather(*computing_coros)
-        self.total_value = Wei(sum(self.values))
+        try:
+            self.values = await asyncio.gather(*computing_coros)
+            self.total_value = Wei(sum(self.values))
+        except (asyncio.exceptions.TimeoutError, ValueError, ContractLogicError) as e:
+            logger.debug(f"Could not compute value for path(s): {self.weighted_paths}. Reason: {e}")
 
     def output(self) -> Tuple[WeightedPathResult, ...]:
         output = []
@@ -161,3 +173,10 @@ class MixedWeightedPath:
             output.append(cast(WeightedPathResult, path_dict))
 
         return tuple(output)
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}: {self.weighted_paths}, "
+            f"values: {self.values}, "
+            f"total_value: {self.total_value}"
+        )

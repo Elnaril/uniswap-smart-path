@@ -1,5 +1,6 @@
 import asyncio
 import itertools
+import logging
 from typing import (
     List,
     Optional,
@@ -10,6 +11,7 @@ from web3 import (
     AsyncHTTPProvider,
     AsyncWeb3,
 )
+from web3.contract import AsyncContract
 from web3.types import (
     ChecksumAddress,
     Wei,
@@ -42,6 +44,9 @@ from ._datastructures import (
     WeightedPathResult,
 )
 from ._utilities import is_null_address
+
+
+logger = logging.getLogger(__name__)
 
 
 class SmartPath:
@@ -77,21 +82,34 @@ class SmartPath:
         self = SmartPath(_w3, with_gas_estimate, chain_id)
         return self
 
+    @staticmethod
+    async def _get_symbol(contract: AsyncContract) -> str:
+        try:
+            return str(await contract.functions.symbol().call())
+        except OverflowError:
+            return "???"
+
     async def _get_token(self, address: ChecksumAddress) -> Token:
         erc20 = self.w3.eth.contract(address, abi=erc20_abi)
         symbol, decimals = await asyncio.gather(
-            erc20.functions.symbol().call(),
+            self._get_symbol(erc20),
             erc20.functions.decimals().call(),
         )
         return Token(AsyncWeb3.to_checksum_address(address), symbol, decimals)
 
     async def _v2_pool_exist(self, token0: Token, token1: Token) -> bool:
-        pool_address = await self.factoryv2.functions.getPair(token0.address, token1.address).call()
-        return AsyncWeb3.is_checksum_address(pool_address) and not is_null_address(pool_address)
+        try:
+            pool_address = await self.factoryv2.functions.getPair(token0.address, token1.address).call()
+            return AsyncWeb3.is_checksum_address(pool_address) and not is_null_address(pool_address)
+        except asyncio.exceptions.TimeoutError:
+            return False
 
     async def _v3_pool_exist(self, token0: Token, token1: Token, fees: int) -> bool:
-        pool_address = await self.factoryv3.functions.getPool(token0.address, token1.address, fees).call()
-        return AsyncWeb3.is_checksum_address(pool_address) and not is_null_address(pool_address)
+        try:
+            pool_address = await self.factoryv3.functions.getPool(token0.address, token1.address, fees).call()
+            return AsyncWeb3.is_checksum_address(pool_address) and not is_null_address(pool_address)
+        except asyncio.exceptions.TimeoutError:
+            return False
 
     async def _v2_pools_exists_for_pivot_token(self, token0: Token, token1: Token, pivot_token: Token) -> bool:
         pool_1_address, pool_2_address = await asyncio.gather(
@@ -241,7 +259,9 @@ class SmartPath:
         )
 
         v2_mixed_paths = self._filter_irrelevant_low_values(v2_mixed_paths, Wei(best_value))
+        logger.debug(f"V2 Paths: {v2_mixed_paths}")
         v3_mixed_paths = self._filter_irrelevant_low_values(v3_mixed_paths, Wei(best_value))
+        logger.debug(f"V3 Paths: {v3_mixed_paths}")
 
         if len(v2_mixed_paths) == len(v3_mixed_paths) == 0:
             return ()
@@ -262,5 +282,6 @@ class SmartPath:
             await asyncio.gather(*computing_value_coros)
             all_mixed_paths.extend([v2_mixed_paths[0], v3_mixed_paths[0]])
             all_mixed_paths.sort(key=lambda mp: mp.total_value, reverse=True)
+            logger.debug(f"All mixed paths: {all_mixed_paths}")
 
             return all_mixed_paths[0].output()
