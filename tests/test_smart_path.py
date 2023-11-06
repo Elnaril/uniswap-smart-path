@@ -219,6 +219,17 @@ def test_get_all_mixed_path():
         assert mixed_path.weighted_paths[1].weight == weight_combinations[i][1]
 
 
+async def perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out):
+    weighted_paths = await smart_path.get_swap_in_path(amount, token_in.address, token_out.address)
+    total_estimate = 0
+    for path in weighted_paths:
+        total_estimate += path["estimate"]
+    if expected_estimate:
+        assert expected_estimate * 0.98 < total_estimate < expected_estimate * 1.02
+    else:
+        assert weighted_paths == ()
+
+
 @pytest.mark.parametrize(
     "amount, token_in, token_out, expected_estimate",
     (
@@ -228,11 +239,28 @@ def test_get_all_mixed_path():
 )
 async def test_get_swap_in_path(amount, token_in, token_out, expected_estimate, w3):
     smart_path = await SmartPath.create(w3)
-    weighted_paths = await smart_path.get_swap_in_path(amount, token_in.address, token_out.address)
-    total_estimate = 0
-    for path in weighted_paths:
-        total_estimate += path["estimate"]
-    if expected_estimate:
-        assert expected_estimate * 0.98 < total_estimate < expected_estimate * 1.02
-    else:
-        assert weighted_paths == ()
+    await perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out)
+
+
+@pytest.mark.parametrize(
+    "amount, token_in, token_out, expected_estimate",
+    (
+            (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], 100 * 10 ** 6),
+            (Wei(100 * 10 ** 18), Token(Web3.to_checksum_address("0x1fB90FFC02D01238Cd8AFE3a82B8C65BAC37042f"), "", 18), tokens["USDT"], None),  # noqa
+    )
+)
+async def test_get_swap_in_path_v2_only(amount, token_in, token_out, expected_estimate, w3):
+    smart_path = await SmartPath.create_v2_only(w3)
+    await perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out)
+
+
+@pytest.mark.parametrize(
+    "amount, token_in, token_out, expected_estimate",
+    (
+            (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], 100 * 10 ** 6),
+            (Wei(100 * 10 ** 18), Token(Web3.to_checksum_address("0x1fB90FFC02D01238Cd8AFE3a82B8C65BAC37042f"), "", 18), tokens["USDT"], None),  # noqa
+    )
+)
+async def test_get_swap_in_path_v3_only(amount, token_in, token_out, expected_estimate, w3):
+    smart_path = await SmartPath.create_v3_only(w3)
+    await perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out)

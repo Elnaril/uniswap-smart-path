@@ -1,5 +1,6 @@
 import asyncio
 import os
+from typing import Dict
 
 import pytest
 from web3 import AsyncWeb3
@@ -7,7 +8,7 @@ from web3 import AsyncWeb3
 from uniswap_smart_path._datastructures import Token  # noqa
 
 
-tokens = {
+tokens: Dict[str, Token] = {
     "USDC": Token(AsyncWeb3.to_checksum_address("0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"), "USDC", 6),
     "USDT": Token(AsyncWeb3.to_checksum_address("0xdac17f958d2ee523a2206206994597c13d831ec7"), "USDT", 6),
     "DAI": Token(AsyncWeb3.to_checksum_address("0x6b175474e89094c44da98b954eedeac495271d0f"), "DAI", 18),

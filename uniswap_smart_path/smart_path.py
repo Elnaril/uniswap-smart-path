@@ -54,17 +54,38 @@ class SmartPath:
             self,
             w3: AsyncWeb3,
             with_gas_estimate: bool = False,
-            chain_id: int = 1) -> None:
+            chain_id: int = 1,
+            with_v2: bool = True,
+            with_v3: bool = True) -> None:
+        if with_gas_estimate:
+            raise NotImplementedError("Gas is not yet estimated")
         self.w3 = w3
         self.chain_id = chain_id
+        self.with_v2 = with_v2
+        self.with_v3 = with_v3
+
         self.pivots = pivot_tokens[self.chain_id]
-        self.v3_pools_fees_x_pivots = tuple(itertools.product(self.pivots, v3_pool_fees))
-        self.uniswapv2 = self.w3.eth.contract(uniswapv2_address, abi=uniswapv2_abi)
-        self.quoter = self.w3.eth.contract(uniswapv3_quoter_address, abi=uniswapv3_quoter_abi)
-        self.factoryv2 = self.w3.eth.contract(uniswapv2_factory_address, abi=uniswapv2_factory_abi)
-        self.factoryv3 = self.w3.eth.contract(uniswapv3_factory_address, abi=uniswapv3_factory_abi)
-        V2PoolPath.contract = self.uniswapv2
-        V3PoolPath.contract = self.quoter
+
+        if self.with_v2:
+            self.uniswapv2 = self.w3.eth.contract(uniswapv2_address, abi=uniswapv2_abi)
+            self.factoryv2 = self.w3.eth.contract(uniswapv2_factory_address, abi=uniswapv2_factory_abi)
+            V2PoolPath.contract = self.uniswapv2
+
+        if self.with_v3:
+            self.v3_pools_fees_x_pivots = tuple(itertools.product(self.pivots, v3_pool_fees))
+            self.quoter = self.w3.eth.contract(uniswapv3_quoter_address, abi=uniswapv3_quoter_abi)
+            self.factoryv3 = self.w3.eth.contract(uniswapv3_factory_address, abi=uniswapv3_factory_abi)
+            V3PoolPath.contract = self.quoter
+
+    @staticmethod
+    async def _get_w3(rpc_endpoint: Optional[str], w3: Optional[AsyncWeb3]) -> AsyncWeb3:
+        if w3:
+            _w3 = w3
+        elif rpc_endpoint:
+            _w3 = AsyncWeb3(AsyncHTTPProvider(rpc_endpoint))
+        else:
+            raise ValueError("Invalid parameters. Must provide either an AsyncWeb3 instance or an rpc address")
+        return _w3
 
     @classmethod
     async def create(
@@ -72,15 +93,32 @@ class SmartPath:
             w3: Optional[AsyncWeb3] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False) -> "SmartPath":
-        if w3:
-            _w3 = w3
-        elif rpc_endpoint:
-            _w3 = AsyncWeb3(AsyncHTTPProvider(rpc_endpoint))
-        else:
-            raise ValueError("Invalid parameters. Must provide either an AsyncWeb3 instance or an rpc address")
+        _w3 = await cls._get_w3(rpc_endpoint, w3)
         chain_id = await _w3.eth.chain_id
-        self = SmartPath(_w3, with_gas_estimate, chain_id)
-        return self
+        logger.debug("Creating SmartPath for V2 and V3 pools")
+        return cls(_w3, with_gas_estimate, chain_id, True, True)
+
+    @classmethod
+    async def create_v2_only(
+            cls,
+            w3: Optional[AsyncWeb3] = None,
+            rpc_endpoint: Optional[str] = None,
+            with_gas_estimate: bool = False) -> "SmartPath":
+        _w3 = await cls._get_w3(rpc_endpoint, w3)
+        chain_id = await _w3.eth.chain_id
+        logger.debug("Creating SmartPath for V2 only pools")
+        return cls(_w3, with_gas_estimate, chain_id, True, False)
+
+    @classmethod
+    async def create_v3_only(
+            cls,
+            w3: Optional[AsyncWeb3] = None,
+            rpc_endpoint: Optional[str] = None,
+            with_gas_estimate: bool = False) -> "SmartPath":
+        _w3 = await cls._get_w3(rpc_endpoint, w3)
+        chain_id = await _w3.eth.chain_id
+        logger.debug("Creating SmartPath for V3 only pools")
+        return cls(_w3, with_gas_estimate, chain_id, False, True)
 
     @staticmethod
     async def _get_symbol(contract: AsyncContract) -> str:
@@ -124,6 +162,10 @@ class SmartPath:
         )
 
     async def _build_v2_path_list(self, token_in: Token, token_out: Token) -> List[V2PoolPath]:
+        v2_path_list: List[V2PoolPath] = []
+        if not self.with_v2:
+            return v2_path_list
+
         v2_pools_exist_cor_list = [self._v2_pool_exist(token_in, token_out)]
         filtered_pivots = [pivot for pivot in self.pivots if pivot not in (token_in, token_out)]
         for pivot_token in filtered_pivots:
@@ -131,7 +173,6 @@ class SmartPath:
 
         v2_pools_exist = await asyncio.gather(*v2_pools_exist_cor_list)
 
-        v2_path_list = []
         if v2_pools_exist[0]:
             v2_path_list.append(V2PoolPath((V2OrderedPool(token_in, token_out),)))
         for i, result in enumerate(v2_pools_exist[1:]):
@@ -174,13 +215,16 @@ class SmartPath:
         return v3_pool_list
 
     async def _build_v3_path_list(self, token_in: Token, token_out: Token) -> List[V3PoolPath]:
+        v3_path_list: List[V3PoolPath] = []
+        if not self.with_v3:
+            return v3_path_list
+
         one_hop_pools, token_in_base_pools, token_out_base_pools = await asyncio.gather(
             self._get_v3_one_hop_pools(token_in, token_out),
             self._get_v3_base_pools(token_in, True),
             self._get_v3_base_pools(token_out, False),
         )
 
-        v3_path_list = []
         for pool in one_hop_pools:
             v3_path_list.append(V3PoolPath((pool,), ))
 
