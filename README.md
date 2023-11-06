@@ -2,6 +2,9 @@
 
 #### Project Information
 [![Continous Integration](https://github.com/Elnaril/uniswap-smart-path/actions/workflows/ci.yml/badge.svg)](https://github.com/Elnaril/uniswap-smart-path/actions/workflows/ci.yml)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/uniswap-smart-path)](https://pypi.org/project/uniswap-smart-path/)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/Elnaril/uniswap-smart-path)](https://github.com/Elnaril/uniswap-smart-path/releases)
+[![PyPi Repository](https://img.shields.io/badge/repository-pipy.org-blue)](https://pypi.org/project/uniswap-smart-path/)
 [![License](https://img.shields.io/github/license/Elnaril/uniswap-smart-path)](https://github.com/Elnaril/uniswap-smart-path/blob/master/LICENSE)
 
 #### Code Quality
@@ -60,6 +63,25 @@ You can also create the `SmartPath` instance from a rpc endpoint:
 from uniswap_smart_path import SmartPath
 
 smart_path = await SmartPath.create(rpc_endpoint=rpc_endpoint)
+
+```
+
+### V2 or V3 pools only
+The factory method `SmartPath.create_v2_only()` can be used to create a `SmartPath` instance that will look for the best path in V2 pools only.
+
+```python
+from uniswap_smart_path import SmartPath
+
+smart_path = await SmartPath.create_v2_only(rpc_endpoint=rpc_endpoint)  # could also use an AsyncWeb3 instance i/o rpc
+
+```
+
+Same thing if you wish to look into V3 pools only, just use `SmartPath.create_v3_only()`
+
+```python
+from uniswap_smart_path import SmartPath
+
+smart_path = await SmartPath.create_v3_only(rpc_endpoint=rpc_endpoint)  # could also use an AsyncWeb3 instance i/o rpc
 
 ```
 
