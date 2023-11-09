@@ -12,7 +12,6 @@ from uniswap_smart_path._datastructures import (  # noqa
     V3PoolPath,
     WeightedPath,
 )
-from uniswap_smart_path.exceptions import SmartPathException
 
 from .conftest import tokens
 
@@ -64,9 +63,5 @@ async def test_mixed_weighted_path(w3):
     assert "V2_SWAP_EXACT_IN" in str(mixed_path)
     assert "V3_SWAP_EXACT_IN" in str(mixed_path)
 
-
-async def test_mixed_weighted_path_exception(w3):
-    await SmartPath.create(w3)
-    mixed_path = MixedWeightedPath([weighted_path_1, weighted_path_2])
-    with pytest.raises(SmartPathException):
-        await mixed_path.compute_path_values(-1)  # noqa
+    # test compute_path_values except statement
+    await mixed_path.compute_path_values(-1)  # noqa

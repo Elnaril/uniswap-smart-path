@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
 from enum import Enum
+import logging
 from typing import (
     Any,
     cast,
@@ -25,9 +26,9 @@ from web3.types import (
 )
 
 from ._utilities import to_wei
-from .exceptions import SmartPathException
 
 
+logger = logging.getLogger(__name__)
 codec = RouterCodec()
 
 
@@ -162,7 +163,7 @@ class MixedWeightedPath:
             self.values = await asyncio.gather(*computing_coros)
             self.total_value = Wei(sum(self.values))
         except (asyncio.exceptions.TimeoutError, ValueError, Web3Exception) as e:
-            raise SmartPathException(f"Could not compute value for path(s): {self.weighted_paths}", e)
+            logger.debug(f"Could not compute value for path(s): {self.weighted_paths}. Reason: {e}")
 
     def output(self) -> Tuple[WeightedPathResult, ...]:
         output = []

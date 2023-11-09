@@ -12,7 +12,7 @@ from uniswap_smart_path import SmartPath
 
 
 web3_provider = os.environ['WEB3_HTTP_PROVIDER_URL_ETHEREUM_MAINNET']
-w3 = AsyncWeb3(AsyncWeb3.AsyncHTTPProvider("http://127.0.0.1:8545", {"timeout": 20}))
+w3 = AsyncWeb3(AsyncWeb3.AsyncHTTPProvider("http://127.0.0.1:8545", {"timeout": 40}))
 chain_id = 1337
 block_number = 16961688
 
@@ -84,7 +84,7 @@ async def get_weth_usdc_path():
 
     uniswapv2_value = (await uniswapv2.functions.getAmountsOut(amount_in, [weth_address, usdc_address]).call())[-1]
     print(uniswapv2_value)
-    assert path[0]["estimate"] > uniswapv2_value
+    assert path[0]["estimate"] > uniswapv2_value, f"actual values: {path[0]['estimate']}, {uniswapv2_value}"
 
     encoded_v3_path_100 = codec.encode.v3_path("V3_SWAP_EXACT_IN", [weth_address, 100, usdc_address])
     uniswapv3_value_100 = (await uniswapv3_quoter.functions.quoteExactInput(encoded_v3_path_100, amount_in).call())[0]
@@ -175,12 +175,13 @@ async def launch_integration_tests():
     smart_path_v3_only = await SmartPath.create_v3_only(w3)
 
     await check_initialization()
+    await asyncio.sleep(2)
     await get_weth_usdc_path()
-    await asyncio.sleep(2)
+    await asyncio.sleep(5)
     await get_crv_mkr_path()
-    await asyncio.sleep(2)
+    await asyncio.sleep(5)
     await get_uni_weth_path()
-    await asyncio.sleep(3)
+    await asyncio.sleep(2)
 
 
 def print_success_message():

@@ -2,8 +2,11 @@ import asyncio
 import itertools
 import logging
 from typing import (
+    Any,
+    cast,
     List,
     Optional,
+    Sequence,
     Tuple,
 )
 
@@ -44,6 +47,7 @@ from ._datastructures import (
     WeightedPathResult,
 )
 from ._utilities import is_null_address
+from .exceptions import SmartPathException
 
 
 logger = logging.getLogger(__name__)
@@ -56,7 +60,8 @@ class SmartPath:
             with_gas_estimate: bool = False,
             chain_id: int = 1,
             with_v2: bool = True,
-            with_v3: bool = True) -> None:
+            with_v3: bool = True,
+            **kwargs: Any) -> None:
         if with_gas_estimate:
             raise NotImplementedError("Gas is not yet estimated")
         self.w3 = w3
@@ -64,28 +69,29 @@ class SmartPath:
         self.with_v2 = with_v2
         self.with_v3 = with_v3
 
-        self.pivots = pivot_tokens[self.chain_id]
+        self.pivots = kwargs.get("pivot_tokens") or pivot_tokens[self.chain_id]
 
         if self.with_v2:
-            self.uniswapv2 = self.w3.eth.contract(uniswapv2_address, abi=uniswapv2_abi)
-            self.factoryv2 = self.w3.eth.contract(uniswapv2_factory_address, abi=uniswapv2_factory_abi)
+            v2_router = w3.to_checksum_address(kwargs.get("v2_router") or uniswapv2_address)
+            v2_router_abi = kwargs.get("v2_router_abi") or uniswapv2_abi
+            self.uniswapv2 = self.w3.eth.contract(v2_router, abi=v2_router_abi)
             V2PoolPath.contract = self.uniswapv2
+
+            v2_factory = w3.to_checksum_address(kwargs.get("v2_factory") or uniswapv2_factory_address)
+            v2_factory_abi = kwargs.get("v2_factory_abi") or uniswapv2_factory_abi
+            self.factoryv2 = self.w3.eth.contract(v2_factory, abi=v2_factory_abi)
 
         if self.with_v3:
             self.v3_pools_fees_x_pivots = tuple(itertools.product(self.pivots, v3_pool_fees))
-            self.quoter = self.w3.eth.contract(uniswapv3_quoter_address, abi=uniswapv3_quoter_abi)
-            self.factoryv3 = self.w3.eth.contract(uniswapv3_factory_address, abi=uniswapv3_factory_abi)
+
+            v3_quoter = w3.to_checksum_address(kwargs.get("v3_quoter") or uniswapv3_quoter_address)
+            v3_quoter_abi = kwargs.get("v3_quoter_abi") or uniswapv3_quoter_abi
+            self.quoter = self.w3.eth.contract(v3_quoter, abi=v3_quoter_abi)
             V3PoolPath.contract = self.quoter
 
-    @staticmethod
-    async def _get_w3(rpc_endpoint: Optional[str], w3: Optional[AsyncWeb3]) -> AsyncWeb3:
-        if w3:
-            _w3 = w3
-        elif rpc_endpoint:
-            _w3 = AsyncWeb3(AsyncHTTPProvider(rpc_endpoint))
-        else:
-            raise ValueError("Invalid parameters. Must provide either an AsyncWeb3 instance or an rpc address")
-        return _w3
+            v3_factory = w3.to_checksum_address(kwargs.get("v3_factory") or uniswapv3_factory_address)
+            v3_factory_abi = kwargs.get("v3_factory_abi") or uniswapv3_factory_abi
+            self.factoryv3 = self.w3.eth.contract(v3_factory, abi=v3_factory_abi)
 
     @classmethod
     async def create(
@@ -93,9 +99,17 @@ class SmartPath:
             w3: Optional[AsyncWeb3] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False) -> "SmartPath":
+        """
+        Create a SmartPath instance which will search for the best path from v2 and v3 pools.
+
+        :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
+        :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
+        :param with_gas_estimate: Not supported at the moment.
+        :return: a SmartPath instance using v2 and v3 pools
+        """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
         chain_id = await _w3.eth.chain_id
-        logger.debug("Creating SmartPath for V2 and V3 pools")
+        logger.debug(f"Creating SmartPath for V2 and V3 pools on chain id: {chain_id}")
         return cls(_w3, with_gas_estimate, chain_id, True, True)
 
     @classmethod
@@ -104,9 +118,17 @@ class SmartPath:
             w3: Optional[AsyncWeb3] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False) -> "SmartPath":
+        """
+        Create a SmartPath instance which will search for the best path from v2 pools only.
+
+        :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
+        :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
+        :param with_gas_estimate: Not supported at the moment.
+        :return: a SmartPath instance using only v2 pools
+        """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
         chain_id = await _w3.eth.chain_id
-        logger.debug("Creating SmartPath for V2 only pools")
+        logger.debug(f"Creating SmartPath for V2 only pool son chain id: {chain_id}")
         return cls(_w3, with_gas_estimate, chain_id, True, False)
 
     @classmethod
@@ -115,10 +137,92 @@ class SmartPath:
             w3: Optional[AsyncWeb3] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False) -> "SmartPath":
+        """
+        Create a SmartPath instance which will search for the best path from v3 pools only.
+
+        :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
+        :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
+        :param with_gas_estimate: Not supported at the moment.
+        :return: a SmartPath instance using only v3 pools
+        """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
         chain_id = await _w3.eth.chain_id
-        logger.debug("Creating SmartPath for V3 only pools")
+        logger.debug(f"Creating SmartPath for V3 only pools on chain id: {chain_id}")
         return cls(_w3, with_gas_estimate, chain_id, False, True)
+
+    @classmethod
+    async def create_custom(
+            cls,
+            w3: Optional[AsyncWeb3] = None,
+            rpc_endpoint: Optional[str] = None,
+            with_gas_estimate: bool = False,
+            **kwargs: Any) -> "SmartPath":
+        """
+        Create a SmartPath instance with custom V2 and/or v3 addresses and pivot tokens. Customization is done thanks
+        to the following optional keyword arguments:
+
+        * pivot_tokens: Sequence[str] - addresses of the token used for multi-hop pools, like weth, usdc, usdt, dai, ...
+        * v2_router: str - v2 router address
+        * v2_router_abi: str - v2 router json abi
+        * v2_factory: str - v2 factory address
+        * v2_factory_abi: str - v2 factory json abi
+        * v3_quoter: str - v3 quoter address
+        * v3_quoter_abi: str - v3 quoter json abi
+        * v3_factory: str - v3 factory address
+        * v3_factory_abi: str - v3 factory json abi
+
+        :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
+        :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
+        :param with_gas_estimate: Not supported at the moment.
+        :param kwargs: keyword args to customize V2 and/or V3 pools (see above)
+        :return: a custom SmartPath instance
+        """
+        _w3 = await cls._get_w3(rpc_endpoint, w3)
+        _chain_id = await _w3.eth.chain_id
+        logger.debug(f"Creating custom SmartPath on chain id: {_chain_id}")
+
+        if kwargs.get("pivot_tokens"):
+            pivots = tuple(cast(Sequence[str], kwargs.get("pivot_tokens")))
+            _pivots = await cls._get_pivot_tokens(pivots, _w3)
+        else:
+            _pivots = None
+
+        with_v2 = kwargs.get("v2_router") and kwargs.get("v2_factory")
+        with_v3 = kwargs.get("v3_quoter") and kwargs.get("v3_factory")
+        if not with_v2 and not with_v3:
+            raise SmartPathException("Must provide v2 and/or v3 addresses")
+
+        return cls(
+            _w3,
+            with_gas_estimate,
+            _chain_id,
+            with_v2=bool(with_v2),
+            with_v3=bool(with_v3),
+            pivot_tokens=_pivots,
+            v2_router=kwargs.get("v2_router"),
+            v2_router_abi=kwargs.get("v2_router_abi"),
+            v2_factory=kwargs.get("v2_factory"),
+            v2_factory_abi=kwargs.get("v2_factory_abi"),
+            v3_quoter=kwargs.get("v3_quoter"),
+            v3_quoter_abi=kwargs.get("v3_quoter_abi"),
+            v3_factory=kwargs.get("v3_factory"),
+            v3_factory_abi=kwargs.get("v3_factory_abi"),
+        )
+
+    @staticmethod
+    async def _get_pivot_tokens(pivots: Sequence[str], w3: AsyncWeb3) -> Tuple[Token, ...]:
+        pivot_coros = [SmartPath._get_token(AsyncWeb3.to_checksum_address(pivot), w3) for pivot in pivots]
+        return tuple(await asyncio.gather(*pivot_coros))
+
+    @staticmethod
+    async def _get_w3(rpc_endpoint: Optional[str], w3: Optional[AsyncWeb3]) -> AsyncWeb3:
+        if w3:
+            _w3 = w3
+        elif rpc_endpoint:
+            _w3 = AsyncWeb3(AsyncHTTPProvider(rpc_endpoint, {"timeout": 5}))
+        else:
+            raise ValueError("Invalid parameters. Must provide either an AsyncWeb3 instance or an rpc address")
+        return _w3
 
     @staticmethod
     async def _get_symbol(contract: AsyncContract) -> str:
@@ -127,10 +231,11 @@ class SmartPath:
         except OverflowError:
             return "???"
 
-    async def _get_token(self, address: ChecksumAddress) -> Token:
-        erc20 = self.w3.eth.contract(address, abi=erc20_abi)
+    @staticmethod
+    async def _get_token(address: ChecksumAddress, w3: AsyncWeb3) -> Token:
+        erc20 = w3.eth.contract(address, abi=erc20_abi)
         symbol, decimals = await asyncio.gather(
-            self._get_symbol(erc20),
+            SmartPath._get_symbol(erc20),
             erc20.functions.decimals().call(),
         )
         return Token(AsyncWeb3.to_checksum_address(address), symbol, decimals)
@@ -271,8 +376,8 @@ class SmartPath:
             token_in_address: ChecksumAddress,
             token_out_address: ChecksumAddress) -> Tuple[WeightedPathResult, ...]:
         token_in, token_out = await asyncio.gather(
-            self._get_token(token_in_address),
-            self._get_token(token_out_address),
+            self._get_token(token_in_address, self.w3),
+            self._get_token(token_out_address, self.w3),
         )
         v2_pool_paths, v3_pool_paths = await asyncio.gather(
             self._build_v2_path_list(token_in, token_out),
