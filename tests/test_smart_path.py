@@ -243,14 +243,11 @@ async def test_get_swap_in_path(amount, token_in, token_out, expected_estimate, 
     custom_smart_path = await SmartPath.create_custom(
         w3,
         pivot_tokens=pivots,
+        v3_pool_fees=(100, 500, 3000, 10000),
         v2_router=const.uniswapv2_address,
-        v2_router_abi=const.uniswapv2_abi,
         v2_factory=const.uniswapv2_factory_address,
-        v2_factory_abi=const.uniswapv2_factory_abi,
         v3_quoter=const.uniswapv3_quoter_address,
-        v3_quoter_abi=const.uniswapv3_quoter_abi,
         v3_factory=const.uniswapv3_factory_address,
-        v3_factory_abi=const.uniswapv3_factory_abi,
     )
     await perform_get_swap_in_path_tests(amount, expected_estimate, custom_smart_path, token_in, token_out)
 

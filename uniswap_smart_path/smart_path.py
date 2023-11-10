@@ -73,25 +73,22 @@ class SmartPath:
 
         if self.with_v2:
             v2_router = w3.to_checksum_address(kwargs.get("v2_router") or uniswapv2_address)
-            v2_router_abi = kwargs.get("v2_router_abi") or uniswapv2_abi
-            self.uniswapv2 = self.w3.eth.contract(v2_router, abi=v2_router_abi)
+            self.uniswapv2 = self.w3.eth.contract(v2_router, abi=uniswapv2_abi)
             V2PoolPath.contract = self.uniswapv2
 
             v2_factory = w3.to_checksum_address(kwargs.get("v2_factory") or uniswapv2_factory_address)
-            v2_factory_abi = kwargs.get("v2_factory_abi") or uniswapv2_factory_abi
-            self.factoryv2 = self.w3.eth.contract(v2_factory, abi=v2_factory_abi)
+            self.factoryv2 = self.w3.eth.contract(v2_factory, abi=uniswapv2_factory_abi)
 
         if self.with_v3:
-            self.v3_pools_fees_x_pivots = tuple(itertools.product(self.pivots, v3_pool_fees))
+            self.v3_pool_fees = tuple(kwargs.get("v3_pool_fees") or v3_pool_fees)
+            self.v3_pools_fees_x_pivots = tuple(itertools.product(self.pivots, self.v3_pool_fees))
 
             v3_quoter = w3.to_checksum_address(kwargs.get("v3_quoter") or uniswapv3_quoter_address)
-            v3_quoter_abi = kwargs.get("v3_quoter_abi") or uniswapv3_quoter_abi
-            self.quoter = self.w3.eth.contract(v3_quoter, abi=v3_quoter_abi)
+            self.quoter = self.w3.eth.contract(v3_quoter, abi=uniswapv3_quoter_abi)
             V3PoolPath.contract = self.quoter
 
             v3_factory = w3.to_checksum_address(kwargs.get("v3_factory") or uniswapv3_factory_address)
-            v3_factory_abi = kwargs.get("v3_factory_abi") or uniswapv3_factory_abi
-            self.factoryv3 = self.w3.eth.contract(v3_factory, abi=v3_factory_abi)
+            self.factoryv3 = self.w3.eth.contract(v3_factory, abi=uniswapv3_factory_abi)
 
     @classmethod
     async def create(
@@ -163,13 +160,9 @@ class SmartPath:
 
         * pivot_tokens: Sequence[str] - addresses of the token used for multi-hop pools, like weth, usdc, usdt, dai, ...
         * v2_router: str - v2 router address
-        * v2_router_abi: str - v2 router json abi
         * v2_factory: str - v2 factory address
-        * v2_factory_abi: str - v2 factory json abi
         * v3_quoter: str - v3 quoter address
-        * v3_quoter_abi: str - v3 quoter json abi
         * v3_factory: str - v3 factory address
-        * v3_factory_abi: str - v3 factory json abi
 
         :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
         :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
@@ -199,14 +192,11 @@ class SmartPath:
             with_v2=bool(with_v2),
             with_v3=bool(with_v3),
             pivot_tokens=_pivots,
+            v3_pool_fees=kwargs.get("v3_pool_fees"),
             v2_router=kwargs.get("v2_router"),
-            v2_router_abi=kwargs.get("v2_router_abi"),
             v2_factory=kwargs.get("v2_factory"),
-            v2_factory_abi=kwargs.get("v2_factory_abi"),
             v3_quoter=kwargs.get("v3_quoter"),
-            v3_quoter_abi=kwargs.get("v3_quoter_abi"),
             v3_factory=kwargs.get("v3_factory"),
-            v3_factory_abi=kwargs.get("v3_factory_abi"),
         )
 
     @staticmethod
@@ -310,13 +300,13 @@ class SmartPath:
 
     async def _get_v3_one_hop_pools(self, token_in: Token, token_out: Token) -> List[V3OrderedPool]:
         v3_pools_exist_cor_list = []
-        for fees in v3_pool_fees:
+        for fees in self.v3_pool_fees:
             v3_pools_exist_cor_list.append(self._v3_pool_exist(token_in, token_out, fees))
         v3_pools_exist = await asyncio.gather(*v3_pools_exist_cor_list)
         v3_pool_list = []
         for i, result in enumerate(v3_pools_exist):
             if result:
-                v3_pool_list.append(V3OrderedPool(token_in, v3_pool_fees[i], token_out))
+                v3_pool_list.append(V3OrderedPool(token_in, self.v3_pool_fees[i], token_out))
         return v3_pool_list
 
     async def _build_v3_path_list(self, token_in: Token, token_out: Token) -> List[V3PoolPath]:
