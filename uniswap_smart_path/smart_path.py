@@ -159,6 +159,7 @@ class SmartPath:
         to the following optional keyword arguments:
 
         * pivot_tokens: Sequence[str] - addresses of the token used for multi-hop pools, like weth, usdc, usdt, dai, ...
+        * v3_pool_fees: tuple of v3 fees as basis point. eg: (100, 500, 3000, 10000)
         * v2_router: str - v2 router address
         * v2_factory: str - v2 factory address
         * v3_quoter: str - v3 quoter address

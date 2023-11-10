@@ -48,7 +48,7 @@ pip install uniswap-smart-path
 ## Usage
 
 The library exposes a class, `SmartPath` with a public method `get_swap_in_path()` that can be used to find the best path/price.
-For performance's sake, it is asynchronous.
+For performance's sake, it is asynchronous. Currently, it supports only the Ethereum blockchain.
 
 ```python
 from uniswap_smart_path import SmartPath
@@ -68,6 +68,7 @@ smart_path = await SmartPath.create(rpc_endpoint=rpc_endpoint)
 
 ### V2 or V3 pools only
 The factory method `SmartPath.create_v2_only()` can be used to create a `SmartPath` instance that will look for the best path in V2 pools only.
+Currently, it supports only the Ethereum blockchain.
 
 ```python
 from uniswap_smart_path import SmartPath
@@ -77,12 +78,33 @@ smart_path = await SmartPath.create_v2_only(rpc_endpoint=rpc_endpoint)  # could 
 ```
 
 Same thing if you wish to look into V3 pools only, just use `SmartPath.create_v3_only()`
+Currently, it supports only the Ethereum blockchain.
 
 ```python
 from uniswap_smart_path import SmartPath
 
 smart_path = await SmartPath.create_v3_only(rpc_endpoint=rpc_endpoint)  # could also use an AsyncWeb3 instance i/o rpc
 
+```
+
+### Custom pools and blockchains
+A custom SmartPath can be created with the factory method `SmartPath.create_custom()`
+
+```python
+from uniswap_smart_path import SmartPath
+
+pivot_tokens = (wbnb_address, usdt_address, usdc_address, dai_address)  # BSC addresses
+v3_pool_fees = (100, 500, 2500, 10000)  # Pancakeswap v3 fees
+
+smart_path = await SmartPath.create_custom(
+        w3,  # BSC AsyncWeb3 instance
+        pivot_tokens=pivot_tokens,
+        v3_pool_fees=v3_pool_fees,
+        v2_router=pancakeswapv2_address,
+        v2_factory=pancakeswapv2_factory,
+        v3_quoter=pancakeswapv3_quoter_address,
+        v3_factory=pancakeswapv3_factory,
+    )
 ```
 
 ## Result
