@@ -4,10 +4,7 @@ from web3.exceptions import BadFunctionCallOutput
 from web3.types import Wei
 
 from uniswap_smart_path import SmartPath
-from uniswap_smart_path._constants import (  # noqa
-    irrelevant_value_filter_multiplier,
-    weight_combinations,
-)
+import uniswap_smart_path._constants as const  # noqa
 from uniswap_smart_path._datastructures import (  # noqa
     MixedWeightedPath,
     RouterFunction,
@@ -18,6 +15,7 @@ from uniswap_smart_path._datastructures import (  # noqa
     V3PoolPath,
     WeightedPath,
 )
+from uniswap_smart_path.exceptions import SmartPathException
 
 from .conftest import tokens
 
@@ -53,9 +51,9 @@ async def test_get_token(token, expected_exception, w3):
     smart_path = await SmartPath.create(w3)
     if expected_exception:
         with pytest.raises(expected_exception):
-            _ = await smart_path._get_token(token.address)
+            _ = await smart_path._get_token(token.address, w3)
     else:
-        assert token == await smart_path._get_token(token.address)
+        assert token == await smart_path._get_token(token.address, w3)
 
 
 @pytest.mark.parametrize(
@@ -192,12 +190,12 @@ mixed_path_1.total_value = Wei(best_value)
 v3_pool_path_2 = V3PoolPath([V3OrderedPool(tokens["WETH"], 3000, tokens["USDC"])])
 weighted_path_2 = WeightedPath(RouterFunction.V3_SWAP_EXACT_IN, v3_pool_path_2, 100)
 mixed_path_2 = MixedWeightedPath([weighted_path_2, ])
-mixed_path_2.total_value = Wei(int(best_value * (irrelevant_value_filter_multiplier - 0.1)))
+mixed_path_2.total_value = Wei(int(best_value * (const.irrelevant_value_filter_multiplier - 0.1)))
 
 v3_pool_path_3 = V3PoolPath([V3OrderedPool(tokens["WETH"], 500, tokens["USDC"])])
 weighted_path_3 = WeightedPath(RouterFunction.V3_SWAP_EXACT_IN, v3_pool_path_3, 100)
 mixed_path_3 = MixedWeightedPath([weighted_path_3, ])
-mixed_path_3.total_value = Wei(int(best_value * (irrelevant_value_filter_multiplier + 0.1)))
+mixed_path_3.total_value = Wei(int(best_value * (const.irrelevant_value_filter_multiplier + 0.1)))
 
 mixed_weighted_paths = [mixed_path_1, mixed_path_2, mixed_path_3]
 expected_mixed_weighted_paths = [mixed_path_1, mixed_path_3]
@@ -212,11 +210,22 @@ def test_get_all_mixed_path():
     for i, mixed_path in enumerate(all_mixed_paths):
         assert mixed_path.weighted_paths[0].router_function == RouterFunction.V3_SWAP_EXACT_IN
         assert mixed_path.weighted_paths[0].pool_path == v3_pool_path_3
-        assert mixed_path.weighted_paths[0].weight == weight_combinations[i][0]
+        assert mixed_path.weighted_paths[0].weight == const.weight_combinations[i][0]
 
         assert mixed_path.weighted_paths[1].router_function == RouterFunction.V2_SWAP_EXACT_IN
         assert mixed_path.weighted_paths[1].pool_path == v2_pool_path_1
-        assert mixed_path.weighted_paths[1].weight == weight_combinations[i][1]
+        assert mixed_path.weighted_paths[1].weight == const.weight_combinations[i][1]
+
+
+async def perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out):
+    weighted_paths = await smart_path.get_swap_in_path(amount, token_in.address, token_out.address)
+    total_estimate = 0
+    for path in weighted_paths:
+        total_estimate += path["estimate"]
+    if expected_estimate:
+        assert expected_estimate * 0.98 < total_estimate < expected_estimate * 1.02
+    else:
+        assert weighted_paths == ()
 
 
 @pytest.mark.parametrize(
@@ -228,11 +237,92 @@ def test_get_all_mixed_path():
 )
 async def test_get_swap_in_path(amount, token_in, token_out, expected_estimate, w3):
     smart_path = await SmartPath.create(w3)
-    weighted_paths = await smart_path.get_swap_in_path(amount, token_in.address, token_out.address)
-    total_estimate = 0
-    for path in weighted_paths:
-        total_estimate += path["estimate"]
-    if expected_estimate:
-        assert expected_estimate * 0.98 < total_estimate < expected_estimate * 1.02
-    else:
-        assert weighted_paths == ()
+    await perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out)
+
+    pivots = [token.address for token in const.pivot_tokens[1]]
+    custom_smart_path = await SmartPath.create_custom(
+        w3,
+        pivot_tokens=pivots,
+        v3_pool_fees=(100, 500, 3000, 10000),
+        v2_router=const.uniswapv2_address,
+        v2_factory=const.uniswapv2_factory_address,
+        v3_quoter=const.uniswapv3_quoter_address,
+        v3_factory=const.uniswapv3_factory_address,
+    )
+    await perform_get_swap_in_path_tests(amount, expected_estimate, custom_smart_path, token_in, token_out)
+
+
+@pytest.mark.parametrize(
+    "amount, token_in, token_out, expected_estimate",
+    (
+            (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], 100 * 10 ** 6),
+            (Wei(100 * 10 ** 18), Token(Web3.to_checksum_address("0x1fB90FFC02D01238Cd8AFE3a82B8C65BAC37042f"), "", 18), tokens["USDT"], None),  # noqa
+    )
+)
+async def test_get_swap_in_path_v2_only(amount, token_in, token_out, expected_estimate, w3):
+    smart_path = await SmartPath.create_v2_only(w3)
+    await perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out)
+
+    custom_smart_path = await SmartPath.create_custom(
+        w3,
+        v2_router=const.uniswapv2_address,
+        v2_factory=const.uniswapv2_factory_address,
+    )
+    await perform_get_swap_in_path_tests(amount, expected_estimate, custom_smart_path, token_in, token_out)
+
+
+@pytest.mark.parametrize(
+    "amount, token_in, token_out, expected_estimate",
+    (
+            (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], 100 * 10 ** 6),
+            (Wei(100 * 10 ** 18), Token(Web3.to_checksum_address("0x1fB90FFC02D01238Cd8AFE3a82B8C65BAC37042f"), "", 18), tokens["USDT"], None),  # noqa
+    )
+)
+async def test_get_swap_in_path_v3_only(amount, token_in, token_out, expected_estimate, w3):
+    smart_path = await SmartPath.create_v3_only(w3)
+    await perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out)
+
+    custom_smart_path = await SmartPath.create_custom(
+        w3,
+        v3_quoter=const.uniswapv3_quoter_address,
+        v3_factory=const.uniswapv3_factory_address,
+    )
+    await perform_get_swap_in_path_tests(amount, expected_estimate, custom_smart_path, token_in, token_out)
+
+
+@pytest.mark.parametrize(
+    "pivots, expected_pivot_tokens",
+    (
+        ((tokens["USDC"].address, tokens["WETH"].address), (tokens["USDC"], tokens["WETH"])),
+        ((), ()),
+    )
+)
+async def test_get_pivot_tokens(pivots, expected_pivot_tokens, w3):
+    smart_path = await SmartPath.create(w3)
+    assert await smart_path._get_pivot_tokens(pivots, w3) == expected_pivot_tokens
+
+
+async def test_create_custom_exception(w3):
+    with pytest.raises(SmartPathException):
+        _ = await SmartPath.create_custom(
+            w3,
+            v3_factory=const.uniswapv3_factory_address,
+        )
+
+    with pytest.raises(SmartPathException):
+        _ = await SmartPath.create_custom(
+            w3,
+            v3_quoter=const.uniswapv3_quoter_address,
+        )
+
+    with pytest.raises(SmartPathException):
+        _ = await SmartPath.create_custom(
+            w3,
+            v2_factory=const.uniswapv2_factory_address,
+        )
+
+    with pytest.raises(SmartPathException):
+        _ = await SmartPath.create_custom(
+            w3,
+            v2_router=const.uniswapv2_address,
+        )

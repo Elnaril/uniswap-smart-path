@@ -62,3 +62,6 @@ async def test_mixed_weighted_path(w3):
     assert 100 * 10 ** 6 * 0.97 < mixed_path.total_value < 100 * 10 ** 6 * 1.03
     assert "V2_SWAP_EXACT_IN" in str(mixed_path)
     assert "V3_SWAP_EXACT_IN" in str(mixed_path)
+
+    # test compute_path_values except statement
+    await mixed_path.compute_path_values(-1)  # noqa

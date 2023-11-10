@@ -19,7 +19,7 @@ from typing import (
 from uniswap_universal_router_decoder import RouterCodec
 from web3 import AsyncWeb3
 from web3.contract import AsyncContract
-from web3.exceptions import ContractLogicError
+from web3.exceptions import Web3Exception
 from web3.types import (
     ChecksumAddress,
     Wei,
@@ -162,7 +162,7 @@ class MixedWeightedPath:
         try:
             self.values = await asyncio.gather(*computing_coros)
             self.total_value = Wei(sum(self.values))
-        except (asyncio.exceptions.TimeoutError, ValueError, ContractLogicError) as e:
+        except (asyncio.exceptions.TimeoutError, ValueError, Web3Exception) as e:
             logger.debug(f"Could not compute value for path(s): {self.weighted_paths}. Reason: {e}")
 
     def output(self) -> Tuple[WeightedPathResult, ...]:
