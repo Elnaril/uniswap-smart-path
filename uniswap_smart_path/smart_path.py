@@ -49,7 +49,6 @@ from ._datastructures import (
 from ._utilities import is_null_address
 from .exceptions import SmartPathException
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -73,22 +72,22 @@ class SmartPath:
 
         if self.with_v2:
             v2_router = w3.to_checksum_address(kwargs.get("v2_router") or uniswapv2_address)
-            self.uniswapv2 = self.w3.eth.contract(v2_router, abi=uniswapv2_abi)
+            self.uniswapv2 = self.w3.eth.contract(v2_router, abi=kwargs.get("v2_abi") or uniswapv2_abi)
             V2PoolPath.contract = self.uniswapv2
 
             v2_factory = w3.to_checksum_address(kwargs.get("v2_factory") or uniswapv2_factory_address)
-            self.factoryv2 = self.w3.eth.contract(v2_factory, abi=uniswapv2_factory_abi)
+            self.factoryv2 = self.w3.eth.contract(v2_factory, abi=kwargs.get("v2_factory_abi") or uniswapv2_factory_abi)
 
         if self.with_v3:
             self.v3_pool_fees = tuple(kwargs.get("v3_pool_fees") or v3_pool_fees)
             self.v3_pools_fees_x_pivots = tuple(itertools.product(self.pivots, self.v3_pool_fees))
 
             v3_quoter = w3.to_checksum_address(kwargs.get("v3_quoter") or uniswapv3_quoter_address)
-            self.quoter = self.w3.eth.contract(v3_quoter, abi=uniswapv3_quoter_abi)
+            self.quoter = self.w3.eth.contract(v3_quoter, abi=kwargs.get("v3_quoter_abi") or uniswapv3_quoter_abi)
             V3PoolPath.contract = self.quoter
 
             v3_factory = w3.to_checksum_address(kwargs.get("v3_factory") or uniswapv3_factory_address)
-            self.factoryv3 = self.w3.eth.contract(v3_factory, abi=uniswapv3_factory_abi)
+            self.factoryv3 = self.w3.eth.contract(v3_factory, abi=kwargs.get("v3_factory_abi") or uniswapv3_factory_abi)
 
     @classmethod
     async def create(
@@ -377,12 +376,12 @@ class SmartPath:
 
         v2_mixed_paths = [
             MixedWeightedPath(
-                (WeightedPath(RouterFunction.V2_SWAP_EXACT_IN, pool_path, 100), )
+                (WeightedPath(RouterFunction.V2_SWAP_EXACT_IN, pool_path, 100),)
             ) for pool_path in v2_pool_paths
         ]
         v3_mixed_paths = [
             MixedWeightedPath(
-                (WeightedPath(RouterFunction.V3_SWAP_EXACT_IN, pool_path, 100), )
+                (WeightedPath(RouterFunction.V3_SWAP_EXACT_IN, pool_path, 100),)
             ) for pool_path in v3_pool_paths
         ]
 
