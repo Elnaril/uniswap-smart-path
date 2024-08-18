@@ -53,4 +53,5 @@ jobs:
       run: |
         export RPC_ENDPOINT=${{ secrets.RPC_ENDPOINT }}
         python --version
+        pip freeze
         tox
