@@ -15,6 +15,7 @@ from web3 import (
     AsyncWeb3,
 )
 from web3.contract import AsyncContract
+from web3.exceptions import BadFunctionCallOutput
 from web3.types import (
     ChecksumAddress,
     Wei,
@@ -219,7 +220,7 @@ class SmartPath:
     async def _get_symbol(contract: AsyncContract) -> str:
         try:
             return str(await contract.functions.symbol().call())
-        except OverflowError:
+        except (BadFunctionCallOutput, OverflowError):
             return "???"
 
     @staticmethod
