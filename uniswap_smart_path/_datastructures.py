@@ -160,7 +160,7 @@ class MixedWeightedPath:
             for w_p in self.weighted_paths
         ]
         try:
-            self.values = await asyncio.gather(*computing_coros)
+            self.values = tuple(await asyncio.gather(*computing_coros))
             self.total_value = Wei(sum(self.values))
         except (asyncio.exceptions.TimeoutError, ValueError, Web3Exception) as e:
             logger.debug(f"Could not compute value for path(s): {self.weighted_paths}. Reason: {e}")
