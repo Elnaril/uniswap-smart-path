@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uniswap-smart-path"
-version = "0.2.1.dev0"
+version = "0.3.0.dev0"
 authors = [
   { name="Elnaril", email="elnaril_dev@caramail.com" },
 ]
@@ -21,11 +21,14 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
 ]
 license = {text = "MIT License"}
 dependencies = [
-  "web3>=6.0.0",
+    "web3>=6.0.0",
+    "uniswap-universal-router-decoder>=v0.8.0",
 ]
 keywords = ["blockchain", "ethereum", "uniswap", "universal router", "swap", "path", "route", "pools"]
 
@@ -37,3 +40,4 @@ packages = ["uniswap_smart_path"]
 "Bug Tracker" = "https://github.com/Elnaril/uniswap-smart-path/issues"
 "Fiverr" = "https://www.fiverr.com/freelancers/elnaril"
 "Buy Me A Coffee" = "https://www.buymeacoffee.com/elnaril"
+"Malt" = "https://www.malt.com/profile/elnaril"
