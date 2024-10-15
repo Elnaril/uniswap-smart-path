@@ -22,7 +22,7 @@ from .conftest import tokens
 
 
 credit_limiter = SmartRateLimiter(1, max_credits=40, method_credits={"eth_call": 20})
-count_limiter = SmartRateLimiter(1, max_count=5)
+count_limiter = SmartRateLimiter(1, max_count=2)
 
 
 async def test_create(w3, rpc_endpoint, uniswapv2_address, uniswapv3_quoter_address):
@@ -47,6 +47,9 @@ async def test_create(w3, rpc_endpoint, uniswapv2_address, uniswapv3_quoter_addr
 
     with pytest.raises(ValueError):
         _ = SmartRateLimiter(1)
+
+    with pytest.raises(NotImplementedError):
+        _ = await SmartPath.create(w3=w3, with_gas_estimate=True)
 
 
 @pytest.mark.parametrize(
