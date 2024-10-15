@@ -13,6 +13,11 @@
 [![Type Checker: mypy](https://img.shields.io/badge/%20type%20checker-mypy-%231674b1?style=flat&labelColor=ef8336)](https://mypy-lang.org/)
 [![Linter: flake8](https://img.shields.io/badge/%20linter-flake8-%231674b1?style=flat&labelColor=ef8336)](https://flake8.pycqa.org/en/latest/)
 
+## Release notes
+### v0.3.0
+* Add Rate Limiter for APIs using credits, CUPS or request units, as well as number of requests pet time unit. (Use [credit-rate-limit](https://github.com/Elnaril/credit-rate-limit)) under the hood.
+* Add support for Python 3.12 & 3.13
+* Miscellaneous fixes/updates for tests and linting
 
 ## Overview 
 
@@ -105,6 +110,35 @@ smart_path = await SmartPath.create_custom(
         v3_quoter=pancakeswapv3_quoter_address,
         v3_factory=pancakeswapv3_factory,
     )
+```
+
+### Using a Rate Limiter
+It's possible to manage rate limits, though only API calls used to compute the paths are rate limited.
+(Only the RPC method `eth_call` is concerned)
+
+API calls performed to create the `SmartPath` objects are not rate limited.
+Both `eth_call` and `chain_id` are involved in these creations.
+
+#### Credit Rate Limit
+For APIs that use credits, computation unit per second (CUPS) or request units:
+```python
+from uniswap_smart_path import SmartPath, SmartRateLimiter
+
+# Define a credit limiter allowing 300 credits per second.
+# The method 'eth_call' costs 20 credits.
+credit_limiter = SmartRateLimiter(interval=1, max_credits=300, method_credits={"eth_call": 20})
+smart_path = await SmartPath.create(w3, smart_rate_limiter=credit_limiter)
+```
+Note that only the `eth_call` method is needed at the moment.
+
+#### Count Rate Limit
+For APIs that just count the number of requests per time unit:
+```python
+from uniswap_smart_path import SmartPath, SmartRateLimiter
+
+# Define a count limiter allowing 5 requests per second.
+count_limiter = SmartRateLimiter(interval=1, max_count=5)
+smart_path = await SmartPath.create(w3, smart_rate_limiter=count_limiter)
 ```
 
 ## Result

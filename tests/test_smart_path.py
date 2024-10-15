@@ -3,7 +3,10 @@ from web3 import Web3
 from web3.exceptions import BadFunctionCallOutput
 from web3.types import Wei
 
-from uniswap_smart_path import SmartPath
+from uniswap_smart_path import (
+    SmartPath,
+    SmartRateLimiter,
+)
 import uniswap_smart_path._constants as const  # noqa
 from uniswap_smart_path._datastructures import (  # noqa
     MixedWeightedPath,
@@ -16,7 +19,6 @@ from uniswap_smart_path._datastructures import (  # noqa
     WeightedPath,
 )
 from uniswap_smart_path.exceptions import SmartPathException
-from uniswap_smart_path.smart_rate_limiter import SmartRateLimiter
 
 from .conftest import tokens
 
