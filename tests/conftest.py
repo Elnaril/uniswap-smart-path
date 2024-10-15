@@ -28,21 +28,21 @@ def event_loop():  # a bit of magic
     loop.close()
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def rpc_endpoint():
     return os.environ["RPC_ENDPOINT"]
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def w3(rpc_endpoint):
     return AsyncWeb3(AsyncWeb3.AsyncHTTPProvider(rpc_endpoint))
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def uniswapv2_address():
     return AsyncWeb3.to_checksum_address("0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def uniswapv3_quoter_address():
     return AsyncWeb3.to_checksum_address("0x61fFE014bA17989E743c5F6cB21bF9697530B21e")
