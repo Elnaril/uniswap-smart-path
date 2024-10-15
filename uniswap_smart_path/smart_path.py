@@ -1,20 +1,33 @@
+from __future__ import annotations
+
 import asyncio
+from functools import wraps
 import itertools
 import logging
 from typing import (
     Any,
+    Awaitable,
+    Callable,
     cast,
     List,
+    Literal,
     Optional,
     Sequence,
     Tuple,
 )
 
+from credit_rate_limit import (
+    CountRateLimiter,
+    CreditRateLimiter,
+    throughput,
+)
+from credit_rate_limit.rate_limiter import DecoratedSignature
 from web3 import (
     AsyncHTTPProvider,
     AsyncWeb3,
 )
 from web3.contract import AsyncContract
+from web3.contract.async_contract import AsyncContractFunctions
 from web3.exceptions import BadFunctionCallOutput
 from web3.types import (
     ChecksumAddress,
@@ -49,9 +62,28 @@ from ._datastructures import (
 )
 from ._utilities import is_null_address
 from .exceptions import SmartPathException
+from .smart_rate_limiter import SmartRateLimiter
 
 
 logger = logging.getLogger(__name__)
+
+
+def _rate_limit(method_name: Literal["eth_call"]) -> Callable[[Callable[..., Any]], Any]:
+    def decorator(func: DecoratedSignature) -> Any:
+        @wraps(func)
+        def wrapper(self_: SmartPath, *args: Any, **kwargs: Any) -> Any:
+            smart_rate_limiter = self_.smart_rate_limiter
+            if smart_rate_limiter:
+                rate_limiter = smart_rate_limiter.rate_limiter
+                if isinstance(rate_limiter, CreditRateLimiter):
+                    request_credits = smart_rate_limiter.method_credits[method_name]  # type: ignore[index]
+                    return throughput(rate_limiter, request_credits=request_credits)(func)(self_, *args, **kwargs)
+                elif isinstance(rate_limiter, CountRateLimiter):
+                    return throughput(rate_limiter)(func)(self_, *args, **kwargs)
+            else:
+                return func(self_, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class SmartPath:
@@ -62,6 +94,7 @@ class SmartPath:
             chain_id: int = 1,
             with_v2: bool = True,
             with_v3: bool = True,
+            smart_rate_limiter: Optional[SmartRateLimiter] = None,
             **kwargs: Any) -> None:
         if with_gas_estimate:
             raise NotImplementedError("Gas is not yet estimated")
@@ -91,62 +124,70 @@ class SmartPath:
             v3_factory = w3.to_checksum_address(kwargs.get("v3_factory") or uniswapv3_factory_address)
             self.factoryv3 = self.w3.eth.contract(v3_factory, abi=uniswapv3_factory_abi)
 
+        self.smart_rate_limiter = smart_rate_limiter
+
     @classmethod
     async def create(
             cls,
             w3: Optional[AsyncWeb3] = None,
             rpc_endpoint: Optional[str] = None,
-            with_gas_estimate: bool = False) -> "SmartPath":
+            with_gas_estimate: bool = False,
+            smart_rate_limiter: Optional[SmartRateLimiter] = None) -> "SmartPath":
         """
         Create a SmartPath instance which will search for the best path from v2 and v3 pools.
 
         :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
         :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
         :param with_gas_estimate: Not supported at the moment.
+        :param smart_rate_limiter: an instance of SmartRateLimiter to manage rate limits
         :return: a SmartPath instance using v2 and v3 pools
         """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
         chain_id = await _w3.eth.chain_id
         logger.debug(f"Creating SmartPath for V2 and V3 pools on chain id: {chain_id}")
-        return cls(_w3, with_gas_estimate, chain_id, True, True)
+        return cls(_w3, with_gas_estimate, chain_id, True, True, smart_rate_limiter)
 
     @classmethod
     async def create_v2_only(
             cls,
             w3: Optional[AsyncWeb3] = None,
             rpc_endpoint: Optional[str] = None,
-            with_gas_estimate: bool = False) -> "SmartPath":
+            with_gas_estimate: bool = False,
+            smart_rate_limiter: Optional[SmartRateLimiter] = None) -> "SmartPath":
         """
         Create a SmartPath instance which will search for the best path from v2 pools only.
 
         :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
         :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
         :param with_gas_estimate: Not supported at the moment.
+        :param smart_rate_limiter: an instance of SmartRateLimiter to manage rate limits
         :return: a SmartPath instance using only v2 pools
         """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
         chain_id = await _w3.eth.chain_id
         logger.debug(f"Creating SmartPath for V2 only pool son chain id: {chain_id}")
-        return cls(_w3, with_gas_estimate, chain_id, True, False)
+        return cls(_w3, with_gas_estimate, chain_id, True, False, smart_rate_limiter)
 
     @classmethod
     async def create_v3_only(
             cls,
             w3: Optional[AsyncWeb3] = None,
             rpc_endpoint: Optional[str] = None,
-            with_gas_estimate: bool = False) -> "SmartPath":
+            with_gas_estimate: bool = False,
+            smart_rate_limiter: Optional[SmartRateLimiter] = None) -> "SmartPath":
         """
         Create a SmartPath instance which will search for the best path from v3 pools only.
 
         :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
         :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
         :param with_gas_estimate: Not supported at the moment.
+        :param smart_rate_limiter: an instance of SmartRateLimiter to manage rate limits
         :return: a SmartPath instance using only v3 pools
         """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
         chain_id = await _w3.eth.chain_id
         logger.debug(f"Creating SmartPath for V3 only pools on chain id: {chain_id}")
-        return cls(_w3, with_gas_estimate, chain_id, False, True)
+        return cls(_w3, with_gas_estimate, chain_id, False, True, smart_rate_limiter)
 
     @classmethod
     async def create_custom(
@@ -154,6 +195,7 @@ class SmartPath:
             w3: Optional[AsyncWeb3] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False,
+            smart_rate_limiter: Optional[SmartRateLimiter] = None,
             **kwargs: Any) -> "SmartPath":
         """
         Create a SmartPath instance with custom V2 and/or v3 addresses and pivot tokens. Customization is done thanks
@@ -169,6 +211,7 @@ class SmartPath:
         :param w3: a valid AsyncWeb3 instance (if no rpc endpoint is given)
         :param rpc_endpoint: an rpc endpoint address (if no w3 instance is given)
         :param with_gas_estimate: Not supported at the moment.
+        :param smart_rate_limiter: an instance of SmartRateLimiter to manage rate limits
         :param kwargs: keyword args to customize V2 and/or V3 pools (see above)
         :return: a custom SmartPath instance
         """
@@ -193,6 +236,7 @@ class SmartPath:
             _chain_id,
             with_v2=bool(with_v2),
             with_v3=bool(with_v3),
+            smart_rate_limiter=smart_rate_limiter,
             pivot_tokens=_pivots,
             v3_pool_fees=kwargs.get("v3_pool_fees"),
             v2_router=kwargs.get("v2_router"),
@@ -203,7 +247,7 @@ class SmartPath:
 
     @staticmethod
     async def _get_pivot_tokens(pivots: Sequence[str], w3: AsyncWeb3) -> Tuple[Token, ...]:
-        pivot_coros = [SmartPath._get_token(AsyncWeb3.to_checksum_address(pivot), w3) for pivot in pivots]
+        pivot_coros = [SmartPath._get_token_at_creation(AsyncWeb3.to_checksum_address(pivot), w3) for pivot in pivots]
         return tuple(await asyncio.gather(*pivot_coros))
 
     @staticmethod
@@ -216,40 +260,62 @@ class SmartPath:
             raise ValueError("Invalid parameters. Must provide either an AsyncWeb3 instance or an rpc address")
         return _w3
 
-    @staticmethod
-    async def _get_symbol(contract: AsyncContract) -> str:
+    async def _get_symbol(self, contract: AsyncContract) -> str:
         try:
-            return str(await contract.functions.symbol().call())
+            return str(await self._contract_function_call(contract.functions.symbol()))
         except (BadFunctionCallOutput, OverflowError):
             return "???"
 
-    @staticmethod
-    async def _get_token(address: ChecksumAddress, w3: AsyncWeb3) -> Token:
+    @_rate_limit("eth_call")
+    async def _contract_function_call(self, contract_function: AsyncContractFunctions) -> Any:
+        return await cast(Awaitable[Any], contract_function.call())
+
+    async def _get_token(self, address: ChecksumAddress, w3: AsyncWeb3) -> Token:
         erc20 = w3.eth.contract(address, abi=erc20_abi)
         symbol, decimals = await asyncio.gather(
-            SmartPath._get_symbol(erc20),
+            self._get_symbol(erc20),
+            self._contract_function_call(erc20.functions.decimals())
+        )
+        return Token(AsyncWeb3.to_checksum_address(address), symbol, decimals)
+
+    @staticmethod
+    async def _get_token_at_creation(address: ChecksumAddress, w3: AsyncWeb3) -> Token:
+        erc20 = w3.eth.contract(address, abi=erc20_abi)
+        symbol, decimals = await asyncio.gather(
+            erc20.functions.symbol().call(),
             erc20.functions.decimals().call(),
         )
         return Token(AsyncWeb3.to_checksum_address(address), symbol, decimals)
 
     async def _v2_pool_exist(self, token0: Token, token1: Token) -> bool:
         try:
-            pool_address = await self.factoryv2.functions.getPair(token0.address, token1.address).call()
+            pool_address = await self._contract_function_call(
+                self.factoryv2.functions.getPair(
+                    token0.address,
+                    token1.address
+                )
+            )
             return AsyncWeb3.is_checksum_address(pool_address) and not is_null_address(pool_address)
         except asyncio.exceptions.TimeoutError:
             return False
 
     async def _v3_pool_exist(self, token0: Token, token1: Token, fees: int) -> bool:
         try:
-            pool_address = await self.factoryv3.functions.getPool(token0.address, token1.address, fees).call()
+            pool_address = await self._contract_function_call(
+                self.factoryv3.functions.getPool(
+                    token0.address,
+                    token1.address,
+                    fees
+                )
+            )
             return AsyncWeb3.is_checksum_address(pool_address) and not is_null_address(pool_address)
         except asyncio.exceptions.TimeoutError:
             return False
 
     async def _v2_pools_exists_for_pivot_token(self, token0: Token, token1: Token, pivot_token: Token) -> bool:
         pool_1_address, pool_2_address = await asyncio.gather(
-            self.factoryv2.functions.getPair(token0.address, pivot_token.address).call(),
-            self.factoryv2.functions.getPair(pivot_token.address, token1.address).call(),
+            self._contract_function_call(self.factoryv2.functions.getPair(token0.address, pivot_token.address)),
+            self._contract_function_call(self.factoryv2.functions.getPair(pivot_token.address, token1.address)),
         )
         return (
                 AsyncWeb3.is_checksum_address(pool_1_address)

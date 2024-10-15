@@ -1,4 +1,5 @@
-uniswap-universal-router-decoder >= v0.8.0
+uniswap-universal-router-decoder >= 0.8.0
+credit-rate-limit >= 0.1.0
 web3 >= 6.0.0, < 8.0.0
 eth-abi >= 4.0.0
 eth-account >= 0.8.0
