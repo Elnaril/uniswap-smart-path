@@ -29,6 +29,7 @@ license = {text = "MIT License"}
 dependencies = [
     "web3>=6.0.0",
     "uniswap-universal-router-decoder>=v0.8.0",
+    "credit-rate-limit>=0.2.0,<1.0.0"
 ]
 keywords = ["blockchain", "ethereum", "uniswap", "universal router", "swap", "path", "route", "pools"]
 
