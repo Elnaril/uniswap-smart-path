@@ -29,8 +29,10 @@ from web3 import (
 from web3.contract import AsyncContract
 from web3.contract.async_contract import AsyncContractFunctions
 from web3.exceptions import BadFunctionCallOutput
+from web3.middleware import validation
 from web3.types import (
     ChecksumAddress,
+    RPCEndpoint,
     Wei,
 )
 
@@ -68,6 +70,9 @@ from .smart_rate_limiter import SmartRateLimiter
 logger = logging.getLogger(__name__)
 
 
+NO_VALIDATION_METHODS = [RPCEndpoint("eth_call")]  # to avoid unnecessary eth_chainId requests
+
+
 def _rate_limit(method_name: Literal["eth_call"]) -> Callable[[Callable[..., Any]], Any]:
     def decorator(func: DecoratedSignature) -> Any:
         @wraps(func)
@@ -99,6 +104,10 @@ class SmartPath:
         if with_gas_estimate:
             raise NotImplementedError("Gas is not yet estimated")
         self.w3 = w3
+        for method in NO_VALIDATION_METHODS:
+            if method in validation.METHODS_TO_VALIDATE:
+                logger.debug(f"Removing {method} from web3.middleware.validation.METHODS_TO_VALIDATE")
+                validation.METHODS_TO_VALIDATE.remove(method)
         self.chain_id = chain_id
         self.with_v2 = with_v2
         self.with_v3 = with_v3
