@@ -8,6 +8,7 @@ from typing import (
     Coroutine,
     Dict,
     List,
+    Optional,
     Protocol,
     Sequence,
     Tuple,
@@ -26,6 +27,10 @@ from web3.types import (
 )
 
 from ._utilities import to_wei
+from .smart_rate_limiter import (
+    _rate_limit,
+    SmartRateLimiter,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -70,14 +75,19 @@ class PoolPath(Protocol[OrderedPool, PathList]):
     def get_path(self) -> PathList: ...
     def to_dict(self) -> Dict[str, PathList]: ...
     async def get_amount_out(self, amount_in: Wei) -> Wei: ...
+    def get_smart_rate_limiter(self) -> Optional[SmartRateLimiter]: ...
 
 
 class V2PoolPath(PoolPath[V2OrderedPool, V2PathList]):
     contract: AsyncContract = AsyncWeb3().eth.contract(AsyncWeb3.to_checksum_address("0" * 40))
 
-    def __init__(self, pools: Sequence[V2OrderedPool]) -> None:
+    def __init__(self, pools: Sequence[V2OrderedPool], smart_rate_limiter: Optional[SmartRateLimiter] = None) -> None:
         self.pools = pools
         self.path = self._build_path()
+        self.smart_rate_limiter = smart_rate_limiter
+
+    def get_smart_rate_limiter(self) -> Optional[SmartRateLimiter]:
+        return self.smart_rate_limiter
 
     def get_path(self) -> V2PathList:
         return self.path
@@ -91,6 +101,7 @@ class V2PoolPath(PoolPath[V2OrderedPool, V2PathList]):
     def to_dict(self) -> Dict[str, V2PathList]:
         return {"path": self.get_path()}
 
+    @_rate_limit("eth_call")
     async def get_amount_out(self, amount_in: Wei) -> Wei:
         quote = await self.contract.functions.getAmountsOut(amount_in, self.get_path()).call()
         return to_wei(quote[-1])
@@ -102,9 +113,13 @@ class V2PoolPath(PoolPath[V2OrderedPool, V2PathList]):
 class V3PoolPath(PoolPath[V3OrderedPool, V3PathList]):
     contract: AsyncContract = AsyncWeb3().eth.contract(AsyncWeb3.to_checksum_address("0" * 40))
 
-    def __init__(self, pools: Sequence[V3OrderedPool]) -> None:
+    def __init__(self, pools: Sequence[V3OrderedPool], smart_rate_limiter: Optional[SmartRateLimiter] = None) -> None:
         self.pools = pools
         self.path = self._build_path()
+        self.smart_rate_limiter = smart_rate_limiter
+
+    def get_smart_rate_limiter(self) -> Optional[SmartRateLimiter]:
+        return self.smart_rate_limiter
 
     def get_path(self) -> V3PathList:
         return self.path
@@ -119,6 +134,7 @@ class V3PoolPath(PoolPath[V3OrderedPool, V3PathList]):
     def to_dict(self) -> Dict[str, V3PathList]:
         return {"path": self.get_path()}
 
+    @_rate_limit("eth_call")
     async def get_amount_out(self, amount_in: Wei) -> Wei:
         encoded_path = codec.encode.v3_path("V3_SWAP_EXACT_IN", self.get_path())
         quote = await self.contract.functions.quoteExactInput(encoded_path, amount_in).call()

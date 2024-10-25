@@ -1,27 +1,16 @@
-from __future__ import annotations
-
 import asyncio
-from functools import wraps
 import itertools
 import logging
 from typing import (
     Any,
     Awaitable,
-    Callable,
     cast,
     List,
-    Literal,
     Optional,
     Sequence,
     Tuple,
 )
 
-from credit_rate_limit import (
-    CountRateLimiter,
-    CreditRateLimiter,
-    throughput,
-)
-from credit_rate_limit.rate_limiter import DecoratedSignature
 from web3 import (
     AsyncHTTPProvider,
     AsyncWeb3,
@@ -64,31 +53,16 @@ from ._datastructures import (
 )
 from ._utilities import is_null_address
 from .exceptions import SmartPathException
-from .smart_rate_limiter import SmartRateLimiter
+from .smart_rate_limiter import (
+    _rate_limit,
+    SmartRateLimiter,
+)
 
 
 logger = logging.getLogger(__name__)
 
 
 NO_VALIDATION_METHODS = [RPCEndpoint("eth_call")]  # to avoid unnecessary eth_chainId requests
-
-
-def _rate_limit(method_name: Literal["eth_call"]) -> Callable[[Callable[..., Any]], Any]:
-    def decorator(func: DecoratedSignature) -> Any:
-        @wraps(func)
-        def wrapper(self_: SmartPath, *args: Any, **kwargs: Any) -> Any:
-            smart_rate_limiter = self_.smart_rate_limiter
-            if smart_rate_limiter:
-                rate_limiter = smart_rate_limiter.rate_limiter
-                if isinstance(rate_limiter, CreditRateLimiter):
-                    request_credits = smart_rate_limiter.method_credits[method_name]  # type: ignore[index]
-                    return throughput(rate_limiter, request_credits=request_credits)(func)(self_, *args, **kwargs)
-                elif isinstance(rate_limiter, CountRateLimiter):
-                    return throughput(rate_limiter)(func)(self_, *args, **kwargs)
-            else:
-                return func(self_, *args, **kwargs)
-        return wrapper
-    return decorator
 
 
 class SmartPath:
@@ -134,6 +108,9 @@ class SmartPath:
             self.factoryv3 = self.w3.eth.contract(v3_factory, abi=uniswapv3_factory_abi)
 
         self.smart_rate_limiter = smart_rate_limiter
+
+    def get_smart_rate_limiter(self) -> Optional[SmartRateLimiter]:
+        return self.smart_rate_limiter
 
     @classmethod
     async def create(
@@ -346,12 +323,13 @@ class SmartPath:
         v2_pools_exist = await asyncio.gather(*v2_pools_exist_cor_list)
 
         if v2_pools_exist[0]:
-            v2_path_list.append(V2PoolPath((V2OrderedPool(token_in, token_out),)))
+            v2_path_list.append(V2PoolPath((V2OrderedPool(token_in, token_out),), self.smart_rate_limiter))
         for i, result in enumerate(v2_pools_exist[1:]):
             if result:
                 v2_path_list.append(
                     V2PoolPath(
-                        (V2OrderedPool(token_in, filtered_pivots[i]), V2OrderedPool(filtered_pivots[i], token_out))
+                        (V2OrderedPool(token_in, filtered_pivots[i]), V2OrderedPool(filtered_pivots[i], token_out)),
+                        self.smart_rate_limiter,
                     )
                 )
 
@@ -398,13 +376,13 @@ class SmartPath:
         )
 
         for pool in one_hop_pools:
-            v3_path_list.append(V3PoolPath((pool,), ))
+            v3_path_list.append(V3PoolPath((pool,), self.smart_rate_limiter))
 
         if len(token_in_base_pools) > 0 and len(token_out_base_pools) > 0:
             product = itertools.product(token_in_base_pools, token_out_base_pools)
             two_hop_pools = [p for p in product if p[0].token_out == p[1].token_in]
             for two_hop_pool in two_hop_pools:
-                v3_path_list.append(V3PoolPath(two_hop_pool, ))
+                v3_path_list.append(V3PoolPath(two_hop_pool, self.smart_rate_limiter))
 
         return v3_path_list
 
