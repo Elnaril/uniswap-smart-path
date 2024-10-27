@@ -8,7 +8,10 @@ import time
 from uniswap_universal_router_decoder import RouterCodec
 from web3 import AsyncWeb3
 
-from uniswap_smart_path import SmartPath, SmartRateLimiter
+from uniswap_smart_path import (
+    SmartPath,
+    SmartRateLimiter,
+)
 
 
 web3_provider = os.environ['WEB3_HTTP_PROVIDER_URL_ETHEREUM_MAINNET']

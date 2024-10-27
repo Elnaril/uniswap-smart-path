@@ -15,7 +15,7 @@
 
 ## Release notes
 ### v0.3.0
-* Add Rate Limiter for APIs using credits, CUPS or request units, as well as number of requests pet time unit.
+* Add Rate Limiter for APIs using credits, CUPS or request units, as well as number of requests per time unit.
   * Use [credit-rate-limit](https://github.com/Elnaril/credit-rate-limit) under the hood.
   * Remove `eth_call` from the methods that are automatically verified by web3 (to prevent surges of useless `eth_chainId`)
 * Add support for Python 3.12 & 3.13
