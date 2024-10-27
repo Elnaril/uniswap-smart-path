@@ -15,22 +15,22 @@
 
 ## Release notes
 ### v0.3.0
-* Add Rate Limiter for APIs using credits, CUPS or request units, as well as number of requests pet time unit. (Use [credit-rate-limit](https://github.com/Elnaril/credit-rate-limit)) under the hood.
+* Add Rate Limiter for APIs using credits, CUPS or request units, as well as number of requests pet time unit.
+  * Use [credit-rate-limit](https://github.com/Elnaril/credit-rate-limit) under the hood.
+  * Remove `eth_call` from the methods that are automatically verified by web3 (to prevent surges of useless `eth_chainId`)
 * Add support for Python 3.12 & 3.13
+* Add support for web3.py v7
 * Miscellaneous fixes/updates for tests and linting
 
 ## Overview 
 
-With several V2 and V3 pools, and 2 or 3 tokens per path, there may be quite a few routes to perform a swap.
-And if you add the gas fees into the equation, it is not straightforward to be sure to get the best deal. 
+When swapping, it is not straightforward to be sure to get the best deal: with several V2 and V3 pools, and 2 or 3 tokens per path, there may be quite a few routes to perform a swap.
 
 The object of this library is to find the path(s), from v2 and v3 pools, to swap with the best price,
-including gas fees, and to return it/them in order to be used directly with the [UR codec](https://github.com/Elnaril/uniswap-universal-router-decoder),
-along with a percentage to know how to divide the amount between them.
+and to return it/them in order to be used directly with the [Universal Router codec](https://github.com/Elnaril/uniswap-universal-router-decoder),
+along with a percentage to know how to divide the amount between them if there is more than one result.
 
-⚠ This project is a work in progress. Not all features have been implemented yet.
-For instance the gas fees is not evaluated in the current version.
-
+⚠ To prevent surges of useless `eth_chainId`, `eth_call` is removed from the methods that are automatically verified by web3.
 ⚠ This tool does not replace your own due diligence to find the best price/path to swap any token.
 
 ---

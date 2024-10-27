@@ -8,7 +8,7 @@ version = "0.3.0.dev0"
 authors = [
   { name="Elnaril", email="elnaril_dev@caramail.com" },
 ]
-description = "Find the path from v2 and v3 pools to swap with the best price, including gas fees"
+description = "Find the path from v2 and v3 pools to swap with the best price"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -27,11 +27,11 @@ classifiers = [
 ]
 license = {text = "MIT License"}
 dependencies = [
-    "web3>=6.0.0",
+    "web3>=6.0.0,<8.0.0",
     "uniswap-universal-router-decoder>=v0.8.0",
     "credit-rate-limit>=0.2.0,<1.0.0"
 ]
-keywords = ["blockchain", "ethereum", "uniswap", "universal router", "swap", "path", "route", "pools"]
+keywords = ["blockchain", "ethereum", "uniswap", "exchange", "dex", "universal router", "swap", "path", "route", "pools"]
 
 [tool.setuptools]
 packages = ["uniswap_smart_path"]
