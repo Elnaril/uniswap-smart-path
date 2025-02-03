@@ -75,14 +75,14 @@ async def get_weth_usdc_path(smart_path, smart_path_v2_only, smart_path_v3_only)
     print(" => Getting WETH USDC path")
     amount_in = 100 * 10**18
     path = await smart_path.get_swap_in_path(amount_in, weth_address, usdc_address)  # noqa
-    pp(f"{path = }")
+    pp(f"{path=}")
     print(path[0]["estimate"])
 
     path_v2_only = await smart_path_v2_only.get_swap_in_path(amount_in, weth_address, usdc_address)  # noqa
-    pp(f"{path_v2_only = }")
+    pp(f"{path_v2_only=}")
 
     path_v3_only = await smart_path_v3_only.get_swap_in_path(amount_in, weth_address, usdc_address)  # noqa
-    pp(f"{path_v3_only = }")
+    pp(f"{path_v3_only=}")
 
     uniswapv2_value = (await uniswapv2.functions.getAmountsOut(amount_in, [weth_address, usdc_address]).call())[-1]
     print(uniswapv2_value)
@@ -117,10 +117,10 @@ async def get_crv_mkr_path(smart_path, smart_path_v2_only, smart_path_v3_only):
     print(path[0]["estimate"])
 
     path_v2_only = await smart_path_v2_only.get_swap_in_path(amount_in, crv_address, mkr_address)  # noqa
-    pp(f"{path_v2_only = }")
+    pp(f"{path_v2_only=}")
 
     path_v3_only = await smart_path_v3_only.get_swap_in_path(amount_in, crv_address, mkr_address)  # noqa
-    pp(f"{path_v3_only = }")
+    pp(f"{path_v3_only=}")
 
     uniswapv2_value = (await uniswapv2.functions.getAmountsOut(amount_in, [crv_address, weth_address, mkr_address]).call())[-1]  # noqa
     print(uniswapv2_value)
@@ -147,10 +147,10 @@ async def get_uni_weth_path(smart_path, smart_path_v2_only, smart_path_v3_only):
     assert path[1]["weight"] == 90
 
     path_v2_only = await smart_path_v2_only.get_swap_in_path(amount_in, uni_address, weth_address)  # noqa
-    pp(f"{path_v2_only = }")
+    pp(f"{path_v2_only=}")
 
     path_v3_only = await smart_path_v3_only.get_swap_in_path(amount_in, uni_address, weth_address)  # noqa
-    pp(f"{path_v3_only = }")
+    pp(f"{path_v3_only=}")
 
     uniswapv2_value = (await uniswapv2.functions.getAmountsOut(amount_in, [uni_address, weth_address]).call())[-1]
     print(uniswapv2_value)

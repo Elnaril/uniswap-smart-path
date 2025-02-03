@@ -74,7 +74,7 @@ async def get_uni_dai_path():
     print(" => Getting UNI DAI path")
     amount_in = 100 * 10**18
     path = await smart_path.get_swap_in_path(amount_in, uni_address, dai_address)  # noqa
-    pp(f"{path = }")
+    pp(f"{path=}")
     print(path[0]["estimate"])
     assert path[0]["estimate"] == 399452796099215583034
     print(" => UNI DAI path: OK")
@@ -84,7 +84,7 @@ async def get_wbnb_usdt_path():
     print(" => Getting WBNB USDT path")
     amount_in = 100 * 10**18
     path = await smart_path.get_swap_in_path(amount_in, wbnb_address, usdt_address)  # noqa
-    pp(f"{path = }")
+    pp(f"{path=}")
     print(path[0]["estimate"])
     assert path[0]["estimate"] == 25260332135985986979008
     print(" => WBNB USDT path: OK")

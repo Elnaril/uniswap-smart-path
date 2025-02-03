@@ -2,11 +2,11 @@ import asyncio
 from multiprocessing import Pool
 import os
 
-from uniswap_smart_path import SmartRateLimiter
 from web3 import AsyncWeb3
 
 from integration_tests.base_infura import run as run_base
 from integration_tests.eth_infura import run as run_eth
+from uniswap_smart_path import SmartRateLimiter
 
 
 # The below links explain that web3.py supports multiple providers (of the same type) only if they have different URLs.
@@ -24,6 +24,7 @@ def eth_worker():
     smart_rate_limiter_alchemy = SmartRateLimiter(1, max_credits=330, method_credits={"eth_call": 26})
     asyncio.run(run_eth(aw3_eth_alchemy, smart_rate_limiter_alchemy))
     print("Stop eth worker")
+
 
 def base_worker():
     print("Start base worker")
