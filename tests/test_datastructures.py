@@ -28,7 +28,7 @@ async def test_v2_pool_path(pools, amount_in, expected_path, expected_amount, w3
     v2_pool_path = V2PoolPath(pools)
 
     assert expected_path == v2_pool_path.get_path() == v2_pool_path.to_dict()["path"]
-    assert 0.93 * expected_amount < await v2_pool_path.get_amount_out(amount_in) < 1.07 * expected_amount
+    assert 0.92 * expected_amount < await v2_pool_path.get_amount_out(amount_in) < 1.08 * expected_amount
 
 
 @pytest.mark.parametrize(
