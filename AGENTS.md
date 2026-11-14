@@ -97,6 +97,7 @@ them by mocking RPC calls — that would change what they are for.
   `"""`. Module-level docstrings are not used in this package.
 - **Typing is strict** (`mypy.ini` disallows untyped defs, incomplete defs, `Any` generics, untyped calls, ...).
   Use `cast()` where web3's own annotations are too loose, and keep the `# type: ignore` comments that already exist.
+  The package ships a `py.typed` marker, so downstream users get the types.
 - **Async first.** Parallel RPC work goes through `asyncio.gather`; never call `asyncio.run` inside the library.
 - **Logging** via a module-level `logger = logging.getLogger(__name__)`, with f-strings in messages.
 - **Errors.** Library errors derive from `SmartPathException`. Quote failures are swallowed on purpose (debug log);
