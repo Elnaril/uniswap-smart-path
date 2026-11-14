@@ -16,7 +16,10 @@ from web3 import (
     AsyncWeb3,
 )
 from web3.contract import AsyncContract
-from web3.contract.async_contract import AsyncContractFunctions
+from web3.contract.async_contract import (
+    AsyncContractFunction,
+    AsyncContractFunctions,
+)
 from web3.exceptions import BadFunctionCallOutput
 from web3.middleware import validation
 from web3.types import (
@@ -55,6 +58,7 @@ from ._utilities import is_null_address
 from .exceptions import SmartPathException
 from .smart_rate_limiter import (
     _rate_limit,
+    _rate_limited_call,
     SmartRateLimiter,
 )
 
@@ -129,7 +133,7 @@ class SmartPath:
         :return: a SmartPath instance using v2 and v3 pools
         """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
-        chain_id = await _w3.eth.chain_id
+        chain_id = await cls._get_chain_id(_w3, smart_rate_limiter)
         logger.debug(f"Creating SmartPath for V2 and V3 pools on chain id: {chain_id}")
         return cls(_w3, with_gas_estimate, chain_id, True, True, smart_rate_limiter)
 
@@ -150,7 +154,7 @@ class SmartPath:
         :return: a SmartPath instance using only v2 pools
         """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
-        chain_id = await _w3.eth.chain_id
+        chain_id = await cls._get_chain_id(_w3, smart_rate_limiter)
         logger.debug(f"Creating SmartPath for V2 only pool son chain id: {chain_id}")
         return cls(_w3, with_gas_estimate, chain_id, True, False, smart_rate_limiter)
 
@@ -171,7 +175,7 @@ class SmartPath:
         :return: a SmartPath instance using only v3 pools
         """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
-        chain_id = await _w3.eth.chain_id
+        chain_id = await cls._get_chain_id(_w3, smart_rate_limiter)
         logger.debug(f"Creating SmartPath for V3 only pools on chain id: {chain_id}")
         return cls(_w3, with_gas_estimate, chain_id, False, True, smart_rate_limiter)
 
@@ -202,12 +206,12 @@ class SmartPath:
         :return: a custom SmartPath instance
         """
         _w3 = await cls._get_w3(rpc_endpoint, w3)
-        _chain_id = await _w3.eth.chain_id
+        _chain_id = await cls._get_chain_id(_w3, smart_rate_limiter)
         logger.debug(f"Creating custom SmartPath on chain id: {_chain_id}")
 
         if kwargs.get("pivot_tokens"):
             pivots = tuple(cast(Sequence[str], kwargs.get("pivot_tokens")))
-            _pivots = await cls._get_pivot_tokens(pivots, _w3)
+            _pivots = await cls._get_pivot_tokens(pivots, _w3, smart_rate_limiter)
         else:
             _pivots = None
 
@@ -231,9 +235,16 @@ class SmartPath:
             v3_factory=kwargs.get("v3_factory"),
         )
 
-    @staticmethod
-    async def _get_pivot_tokens(pivots: Sequence[str], w3: AsyncWeb3) -> Tuple[Token, ...]:
-        pivot_coros = [SmartPath._get_token_at_creation(AsyncWeb3.to_checksum_address(pivot), w3) for pivot in pivots]
+    @classmethod
+    async def _get_pivot_tokens(
+            cls,
+            pivots: Sequence[str],
+            w3: AsyncWeb3,
+            smart_rate_limiter: Optional[SmartRateLimiter] = None) -> Tuple[Token, ...]:
+        pivot_coros = [
+            cls._get_token_at_creation(AsyncWeb3.to_checksum_address(pivot), w3, smart_rate_limiter)
+            for pivot in pivots
+        ]
         return tuple(await asyncio.gather(*pivot_coros))
 
     @staticmethod
@@ -245,6 +256,10 @@ class SmartPath:
         else:
             raise ValueError("Invalid parameters. Must provide either an AsyncWeb3 instance or an rpc address")
         return _w3
+
+    @staticmethod
+    async def _get_chain_id(w3: AsyncWeb3, smart_rate_limiter: Optional[SmartRateLimiter]) -> int:
+        return cast(int, await _rate_limited_call(smart_rate_limiter, "eth_chainId", lambda: w3.eth.chain_id))
 
     async def _get_symbol(self, contract: AsyncContract) -> str:
         try:
@@ -265,11 +280,25 @@ class SmartPath:
         return Token(AsyncWeb3.to_checksum_address(address), symbol, decimals)
 
     @staticmethod
-    async def _get_token_at_creation(address: ChecksumAddress, w3: AsyncWeb3) -> Token:
+    async def _contract_function_call_at_creation(
+            contract_function: AsyncContractFunction,
+            smart_rate_limiter: Optional[SmartRateLimiter]) -> Any:
+        return await _rate_limited_call(
+            smart_rate_limiter,
+            "eth_call",
+            lambda: cast(Awaitable[Any], contract_function.call()),
+        )
+
+    @classmethod
+    async def _get_token_at_creation(
+            cls,
+            address: ChecksumAddress,
+            w3: AsyncWeb3,
+            smart_rate_limiter: Optional[SmartRateLimiter] = None) -> Token:
         erc20 = w3.eth.contract(address, abi=erc20_abi)
         symbol, decimals = await asyncio.gather(
-            erc20.functions.symbol().call(),
-            erc20.functions.decimals().call(),
+            cls._contract_function_call_at_creation(erc20.functions.symbol(), smart_rate_limiter),
+            cls._contract_function_call_at_creation(erc20.functions.decimals(), smart_rate_limiter),
         )
         return Token(AsyncWeb3.to_checksum_address(address), symbol, decimals)
 

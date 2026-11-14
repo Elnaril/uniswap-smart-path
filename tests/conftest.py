@@ -6,6 +6,7 @@ import pytest
 from web3 import AsyncWeb3
 
 from uniswap_smart_path._datastructures import Token  # noqa
+from uniswap_smart_path.smart_rate_limiter import SmartRateLimiter
 
 
 tokens: Dict[str, Token] = {
@@ -18,6 +19,10 @@ tokens: Dict[str, Token] = {
     "LINK": Token(AsyncWeb3.to_checksum_address("0x514910771AF9Ca656af840dff83E8264EcF986CA"), "LINK", 18),
     "MKR": Token(AsyncWeb3.to_checksum_address("0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2"), "???", 18),
 }
+
+
+credit_limiter = SmartRateLimiter(1, max_credits=130, method_credits={"eth_call": 26, "eth_chainId": 5})
+count_limiter = SmartRateLimiter(1, max_count=2)
 
 
 @pytest.fixture(scope="session")

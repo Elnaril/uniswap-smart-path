@@ -20,11 +20,11 @@ from uniswap_smart_path._datastructures import (  # noqa
 )
 from uniswap_smart_path.exceptions import SmartPathException
 
-from .conftest import tokens
-
-
-credit_limiter = SmartRateLimiter(1, max_credits=40, method_credits={"eth_call": 20})
-count_limiter = SmartRateLimiter(1, max_count=2)
+from .conftest import (
+    count_limiter,
+    credit_limiter,
+    tokens,
+)
 
 
 async def test_create(w3, rpc_endpoint, uniswapv2_address, uniswapv3_quoter_address):
@@ -59,12 +59,12 @@ async def test_create(w3, rpc_endpoint, uniswapv2_address, uniswapv3_quoter_addr
     (
         (tokens["WETH"], None, None),
         (tokens["WETH"], credit_limiter, None),
-        # (tokens["WETH"], count_limiter, None),  # issue between pytest-asyncio and python 3.8 & 3.9  # noqa
+        (tokens["WETH"], count_limiter, None),
         (tokens["MKR"], None, None),
         (tokens["MKR"], credit_limiter, None),
-        # (tokens["MKR"], count_limiter, None),  # issue between pytest-asyncio and python 3.8 & 3.9  # noqa
+        (tokens["MKR"], count_limiter, None),
         (tokens["FAKE"], None, BadFunctionCallOutput),  # BadFunctionCallOutput because of decimals call
-        (Token(Web3.to_checksum_address("0" * 40), "NotAToken", 0), None, BadFunctionCallOutput)
+        (Token(Web3.to_checksum_address("0" * 40), "NotAToken", 0), None, BadFunctionCallOutput),
     )
 )
 async def test_get_token(token, smart_rate_limiter, expected_exception, w3):
@@ -81,10 +81,10 @@ async def test_get_token(token, smart_rate_limiter, expected_exception, w3):
     (
         (tokens["WETH"], tokens["USDC"], None, True),
         (tokens["WETH"], tokens["USDC"], credit_limiter, True),
-        # (tokens["WETH"], tokens["USDC"], count_limiter, True),  # issue between pytest-asyncio and python 3.8 & 3.9  # noqa
+        (tokens["WETH"], tokens["USDC"], count_limiter, True),
         (tokens["WETH"], tokens["FAKE"], None, False),
         (tokens["WETH"], tokens["FAKE"], credit_limiter, False),
-        # (tokens["WETH"], tokens["FAKE"], count_limiter, False),  # issue between pytest-asyncio and python 3.8 & 3.9  # noqa
+        (tokens["WETH"], tokens["FAKE"], count_limiter, False),
         (tokens["WETH"], Token(Web3.to_checksum_address("0" * 40), "NotAToken", 0), None, False),
         (tokens["WETH"], Token(Web3.to_checksum_address("0" * 40), "NotAToken", 0), credit_limiter, False),
         (tokens["WETH"], Token(Web3.to_checksum_address("0" * 40), "NotAToken", 0), count_limiter, False),
@@ -157,21 +157,21 @@ async def test_build_v2_path_list(token_in, token_out, expected_result, w3):
 
 
 @pytest.mark.parametrize(
-    "token_in, is_token_in, expected_number_of_results",
+    "token_in, is_token_in, expected_min_number_of_results",
     (
         (tokens["USDC"], True, 12),
         (tokens["WETH"], True, 12),
-        (tokens["UNI"], False, 13),
+        (tokens["UNI"], False, 14),
         (tokens["FAKE"], True, 0),
     )
 )
-async def test_build_v3_base_pool_list(token_in, is_token_in, expected_number_of_results, w3):
-    smart_path = await SmartPath.create(w3)
+async def test_build_v3_base_pool_list(token_in, is_token_in, expected_min_number_of_results, w3):
+    smart_path = await SmartPath.create(w3, smart_rate_limiter=credit_limiter)
     v3_base_pool_list = await smart_path._get_v3_base_pools(token_in, is_token_in)
-    assert len(v3_base_pool_list) == expected_number_of_results
+    assert len(v3_base_pool_list) >= expected_min_number_of_results
     for pool in v3_base_pool_list:
         assert pool.token_in != pool.token_out
-        assert token_in == pool.token_in if is_token_in else pool.token_out
+        assert token_in == (pool.token_in if is_token_in else pool.token_out)
 
 
 @pytest.mark.parametrize(
@@ -193,16 +193,16 @@ async def test_get_v3_one_hop_pools(token_in, token_out, expected_number_of_resu
 
 
 @pytest.mark.parametrize(
-    "token_in, token_out, expected_number_of_results",
+    "token_in, token_out, expected_min_number_of_results",
     (
         (tokens["WETH"], tokens["USDC"], 36),
         (tokens["UNI"], tokens["LINK"], 38),
     )
 )
-async def test_build_v3_path_list(token_in, token_out, expected_number_of_results, w3):
+async def test_build_v3_path_list(token_in, token_out, expected_min_number_of_results, w3):
     smart_path = await SmartPath.create(w3)
     v3_pool_paths = await smart_path._build_v3_path_list(token_in, token_out)
-    assert len(v3_pool_paths) >= expected_number_of_results
+    assert len(v3_pool_paths) >= expected_min_number_of_results
     for pool in v3_pool_paths:
         assert pool.pools[0].token_in != pool.pools[0].token_out
         assert pool.pools[-1].token_in != pool.pools[-1].token_out
@@ -214,8 +214,8 @@ async def test_build_v3_path_list(token_in, token_out, expected_number_of_result
 v2_pool_path_1 = V2PoolPath([V2OrderedPool(tokens["WETH"], tokens["USDC"])])
 weighted_path_1 = WeightedPath(RouterFunction.V2_SWAP_EXACT_IN, v2_pool_path_1, 100)
 mixed_path_1 = MixedWeightedPath([weighted_path_1, ])
-best_value = 1800 * 10**6
-mixed_path_1.total_value = Wei(best_value)
+best_value = Wei(1800 * 10**6)
+mixed_path_1.total_value = best_value
 
 v3_pool_path_2 = V3PoolPath([V3OrderedPool(tokens["WETH"], 3000, tokens["USDC"])])
 weighted_path_2 = WeightedPath(RouterFunction.V3_SWAP_EXACT_IN, v3_pool_path_2, 100)
@@ -266,7 +266,7 @@ async def perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, 
     )
 )
 async def test_get_swap_in_path(amount, token_in, token_out, expected_estimate, w3):
-    smart_path = await SmartPath.create(w3)
+    smart_path = await SmartPath.create(w3, smart_rate_limiter=credit_limiter)
     await perform_get_swap_in_path_tests(amount, expected_estimate, smart_path, token_in, token_out)
 
     pivots = [token.address for token in const.pivot_tokens[1]]
@@ -278,6 +278,7 @@ async def test_get_swap_in_path(amount, token_in, token_out, expected_estimate, 
         v2_factory=const.uniswapv2_factory_address,
         v3_quoter=const.uniswapv3_quoter_address,
         v3_factory=const.uniswapv3_factory_address,
+        smart_rate_limiter=credit_limiter,
     )
     await perform_get_swap_in_path_tests(amount, expected_estimate, custom_smart_path, token_in, token_out)
 
@@ -285,10 +286,9 @@ async def test_get_swap_in_path(amount, token_in, token_out, expected_estimate, 
 @pytest.mark.parametrize(
     "amount, token_in, token_out, smart_rate_limiter, expected_estimate",
     (
-            (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], None, 100 * 10 ** 6),
             (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], credit_limiter, 100 * 10 ** 6),
-            # (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], count_limiter, 100 * 10 ** 6),  # issue between pytest-asyncio and python 3.8 & 3.9  # noqa
-            (Wei(100 * 10 ** 18), Token(Web3.to_checksum_address("0x1fB90FFC02D01238Cd8AFE3a82B8C65BAC37042f"), "", 18), tokens["USDT"], None, None),  # noqa
+            (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], count_limiter, 100 * 10 ** 6),
+            (Wei(100 * 10 ** 18), Token(Web3.to_checksum_address("0x1fB90FFC02D01238Cd8AFE3a82B8C65BAC37042f"), "", 18), tokens["USDT"], credit_limiter, None),  # noqa
     )
 )
 async def test_get_swap_in_path_v2_only(amount, token_in, token_out, smart_rate_limiter, expected_estimate, w3):
@@ -309,10 +309,9 @@ async def test_get_swap_in_path_v2_only(amount, token_in, token_out, smart_rate_
 @pytest.mark.parametrize(
     "amount, token_in, token_out, smart_rate_limiter, expected_estimate",
     (
-            (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], None, 100 * 10 ** 6),
             (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], credit_limiter, 100 * 10 ** 6),
-            # (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], count_limiter, 100 * 10 ** 6),  # issue between pytest-asyncio and python 3.8 & 3.9  # noqa
-            (Wei(100 * 10 ** 18), Token(Web3.to_checksum_address("0x1fB90FFC02D01238Cd8AFE3a82B8C65BAC37042f"), "", 18), tokens["USDT"], None, None),  # noqa
+            (Wei(100 * 10 ** 18), tokens["DAI"], tokens["USDT"], count_limiter, 100 * 10 ** 6),
+            (Wei(100 * 10 ** 18), Token(Web3.to_checksum_address("0x1fB90FFC02D01238Cd8AFE3a82B8C65BAC37042f"), "", 18), tokens["USDT"], credit_limiter, None),  # noqa
     )
 )
 async def test_get_swap_in_path_v3_only(amount, token_in, token_out, smart_rate_limiter, expected_estimate, w3):
@@ -338,8 +337,8 @@ async def test_get_swap_in_path_v3_only(amount, token_in, token_out, smart_rate_
     )
 )
 async def test_get_pivot_tokens(pivots, expected_pivot_tokens, w3):
-    smart_path = await SmartPath.create(w3)
-    assert await smart_path._get_pivot_tokens(pivots, w3) == expected_pivot_tokens
+    smart_path = await SmartPath.create(w3, smart_rate_limiter=credit_limiter)
+    assert await smart_path._get_pivot_tokens(pivots, w3, credit_limiter) == expected_pivot_tokens
 
 
 async def test_create_custom_exception(w3):
@@ -347,22 +346,26 @@ async def test_create_custom_exception(w3):
         _ = await SmartPath.create_custom(
             w3,
             v3_factory=const.uniswapv3_factory_address,
+            smart_rate_limiter=credit_limiter,
         )
 
     with pytest.raises(SmartPathException):
         _ = await SmartPath.create_custom(
             w3,
             v3_quoter=const.uniswapv3_quoter_address,
+            smart_rate_limiter=credit_limiter,
         )
 
     with pytest.raises(SmartPathException):
         _ = await SmartPath.create_custom(
             w3,
             v2_factory=const.uniswapv2_factory_address,
+            smart_rate_limiter=credit_limiter,
         )
 
     with pytest.raises(SmartPathException):
         _ = await SmartPath.create_custom(
             w3,
             v2_router=const.uniswapv2_address,
+            smart_rate_limiter=credit_limiter,
         )

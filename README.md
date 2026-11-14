@@ -14,6 +14,12 @@
 [![Linter: flake8](https://img.shields.io/badge/%20linter-flake8-%231674b1?style=flat&labelColor=ef8336)](https://flake8.pycqa.org/en/latest/)
 
 ## Release notes
+### v0.4.0
+* Rate limit the API calls performed when creating the `SmartPath` objects (`eth_chainId` and the creation-time
+  `eth_call`s for the pivot tokens).
+* Add `eth_chainId` to `method_credits`. Breaking change: when a credit rate limiter is used, both the `eth_call`
+  and `eth_chainId` costs are now required.
+
 ### v0.3.0
 * Add Rate Limiter for APIs using credits, CUPS or request units, as well as number of requests per time unit.
   * Use [credit-rate-limit](https://github.com/Elnaril/credit-rate-limit) under the hood.
@@ -113,11 +119,11 @@ smart_path = await SmartPath.create_custom(
 ```
 
 ### Using a Rate Limiter
-It's possible to manage rate limits, though only API calls used to compute the paths are rate limited.
-(Only the RPC method `eth_call` is concerned)
+It's possible to manage rate limits, for the API calls used to compute the paths as well as for the API calls performed
+to create the `SmartPath` objects.
 
-API calls performed to create the `SmartPath` objects are not rate limited.
-Both `eth_call` and `chain_id` are involved in these creations.
+The rate limiter needs the `eth_call` and `eth_chainId` costs: both are mandatory in `method_credits` when a credit
+rate limiter is used.
 
 #### Credit Rate Limit
 For APIs that use credits, computation unit per second (CUPS) or request units:
@@ -125,11 +131,11 @@ For APIs that use credits, computation unit per second (CUPS) or request units:
 from uniswap_smart_path import SmartPath, SmartRateLimiter
 
 # Define a credit limiter allowing 300 credits per second.
-# The method 'eth_call' costs 20 credits.
-credit_limiter = SmartRateLimiter(interval=1, max_credits=300, method_credits={"eth_call": 20})
+# The methods 'eth_call' and 'eth_chainId' cost 20 credits each.
+credit_limiter = SmartRateLimiter(interval=1, max_credits=300, method_credits={"eth_call": 20, "eth_chainId": 20})
 smart_path = await SmartPath.create(w3, smart_rate_limiter=credit_limiter)
 ```
-Note that only the `eth_call` method is needed at the moment.
+Only the `eth_call` and `eth_chainId` methods are used by the library.
 
 #### Count Rate Limit
 For APIs that just count the number of requests per time unit:
