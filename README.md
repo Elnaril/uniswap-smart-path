@@ -19,6 +19,8 @@
   `eth_call`s for the pivot tokens).
 * Add `eth_chainId` to `method_credits`. Breaking change: when a credit rate limiter is used, both the `eth_call`
   and `eth_chainId` costs are now required.
+* Drop support for Python 3.8 and 3.9; add support for Python 3.14 (supported versions: 3.10 to 3.14).
+* Drop support for web3.py v6; support web3.py v7.15+ and v8.
 
 ### v0.3.0
 * Add Rate Limiter for APIs using credits, CUPS or request units, as well as number of requests per time unit.

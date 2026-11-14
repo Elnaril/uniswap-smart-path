@@ -57,8 +57,8 @@ RPC_ENDPOINT=https://... pytest tests
 coverage run -m pytest tests && coverage report -m && coverage json
 ```
 
-`tox` runs all of the above over Python 3.8–3.13 × web3 6 and 7 (`tox -e lint-web37`, `tox -e coverage`, ...).
-See `tox.ini`.
+`tox` runs all of the above over Python 3.10, 3.12 and 3.14 × web3 7.15, latest 7 and latest 8 (`tox -e lint-web37`,
+`tox -e coverage`, ...). See `tox.ini`.
 
 Unit tests are **live-network tests**: they hit mainnet Uniswap contracts and require `RPC_ENDPOINT`. Do not "fix"
 them by mocking RPC calls — that would change what they are for.
@@ -77,9 +77,9 @@ them by mocking RPC calls — that would change what they are for.
 
 ## Style specifics of this codebase
 
-- **Python 3.8 floor.** `pyproject.toml` declares `requires-python = ">=3.8"`, so use `typing.Tuple`, `List`, `Dict`,
-  `Optional`, ... — never `tuple[...]`, `dict[...]` or `X | Y` at runtime. The UR SDK can use the lowercase forms; this
-  repo cannot until the floor is raised.
+- **Python 3.10 floor.** `pyproject.toml` declares `requires-python = ">=3.10"`, so the lowercase generics
+  (`tuple[...]`, `dict[...]`) and `X | Y` are allowed. Existing modules still use `typing.Tuple`, `List`, `Dict`,
+  `Optional`, ... — match the file you are editing; new code may follow the UR SDK's lowercase style.
 - **Imports.** Existing package modules use relative imports (`from ._constants import ...`); `__init__.py` and the UR
   SDK use absolute ones. Match the file you are editing; for a new module, prefer absolute
   (`from uniswap_smart_path._constants import ...`) to align with the UR SDK.
@@ -137,7 +137,8 @@ at the `eth_chainId` cost, and the pivot tokens' `symbol`/`decimals` at the `eth
 - **Tests need a session-scoped event loop.** `pytest.ini` sets `asyncio_default_test_loop_scope = session`:
   `credit-rate-limit` refunds credits/semaphore slots with `loop.call_later`, so a per-test loop discards the refund
   when it closes and the next test hangs in `__aenter__`. Do not remove that setting. The shared `credit_limiter` and
-  `count_limiter` live in `tests/conftest.py`.
+  `count_limiter` live in `tests/conftest.py`. pytest-asyncio >= 1.3 is required; do not reintroduce an `event_loop`
+  fixture.
 - **`notes/` and `analysis/` are git-ignored.** Do not rely on them as documentation, and do not put deliverables
   there unless the user asks.
 - **Generated files.** `coverage.json` is tracked; `dist/`, `*.egg-info/`, `.coverage`, caches are not. The version

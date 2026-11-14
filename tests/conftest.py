@@ -1,4 +1,3 @@
-import asyncio
 import os
 from typing import Dict
 
@@ -23,14 +22,6 @@ tokens: Dict[str, Token] = {
 
 credit_limiter = SmartRateLimiter(1, max_credits=130, method_credits={"eth_call": 26, "eth_chainId": 5})
 count_limiter = SmartRateLimiter(1, max_count=2)
-
-
-@pytest.fixture(scope="session")
-def event_loop():  # a bit of magic
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="session")
