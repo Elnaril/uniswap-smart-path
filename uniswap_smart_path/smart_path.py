@@ -72,7 +72,7 @@ NO_VALIDATION_METHODS = [RPCEndpoint("eth_call")]  # to avoid unnecessary eth_ch
 class SmartPath:
     def __init__(
             self,
-            w3: AsyncWeb3,
+            w3: AsyncWeb3[Any],
             with_gas_estimate: bool = False,
             chain_id: int = 1,
             with_v2: bool = True,
@@ -119,7 +119,7 @@ class SmartPath:
     @classmethod
     async def create(
             cls,
-            w3: Optional[AsyncWeb3] = None,
+            w3: Optional[AsyncWeb3[Any]] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False,
             smart_rate_limiter: Optional[SmartRateLimiter] = None) -> "SmartPath":
@@ -140,7 +140,7 @@ class SmartPath:
     @classmethod
     async def create_v2_only(
             cls,
-            w3: Optional[AsyncWeb3] = None,
+            w3: Optional[AsyncWeb3[Any]] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False,
             smart_rate_limiter: Optional[SmartRateLimiter] = None) -> "SmartPath":
@@ -161,7 +161,7 @@ class SmartPath:
     @classmethod
     async def create_v3_only(
             cls,
-            w3: Optional[AsyncWeb3] = None,
+            w3: Optional[AsyncWeb3[Any]] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False,
             smart_rate_limiter: Optional[SmartRateLimiter] = None) -> "SmartPath":
@@ -182,7 +182,7 @@ class SmartPath:
     @classmethod
     async def create_custom(
             cls,
-            w3: Optional[AsyncWeb3] = None,
+            w3: Optional[AsyncWeb3[Any]] = None,
             rpc_endpoint: Optional[str] = None,
             with_gas_estimate: bool = False,
             smart_rate_limiter: Optional[SmartRateLimiter] = None,
@@ -239,7 +239,7 @@ class SmartPath:
     async def _get_pivot_tokens(
             cls,
             pivots: Sequence[str],
-            w3: AsyncWeb3,
+            w3: AsyncWeb3[Any],
             smart_rate_limiter: Optional[SmartRateLimiter] = None) -> Tuple[Token, ...]:
         pivot_coros = [
             cls._get_token_at_creation(AsyncWeb3.to_checksum_address(pivot), w3, smart_rate_limiter)
@@ -248,7 +248,9 @@ class SmartPath:
         return tuple(await asyncio.gather(*pivot_coros))
 
     @staticmethod
-    async def _get_w3(rpc_endpoint: Optional[str], w3: Optional[AsyncWeb3]) -> AsyncWeb3:
+    async def _get_w3(
+            rpc_endpoint: Optional[str],
+            w3: Optional[AsyncWeb3[Any]]) -> AsyncWeb3[Any]:
         if w3:
             _w3 = w3
         elif rpc_endpoint:
@@ -258,7 +260,7 @@ class SmartPath:
         return _w3
 
     @staticmethod
-    async def _get_chain_id(w3: AsyncWeb3, smart_rate_limiter: Optional[SmartRateLimiter]) -> int:
+    async def _get_chain_id(w3: AsyncWeb3[Any], smart_rate_limiter: Optional[SmartRateLimiter]) -> int:
         return cast(int, await _rate_limited_call(smart_rate_limiter, "eth_chainId", lambda: w3.eth.chain_id))
 
     async def _get_symbol(self, contract: AsyncContract) -> str:
@@ -271,7 +273,7 @@ class SmartPath:
     async def _contract_function_call(self, contract_function: AsyncContractFunctions) -> Any:
         return await cast(Awaitable[Any], contract_function.call())
 
-    async def _get_token(self, address: ChecksumAddress, w3: AsyncWeb3) -> Token:
+    async def _get_token(self, address: ChecksumAddress, w3: AsyncWeb3[Any]) -> Token:
         erc20 = w3.eth.contract(address, abi=erc20_abi)
         symbol, decimals = await asyncio.gather(
             self._get_symbol(erc20),
@@ -293,7 +295,7 @@ class SmartPath:
     async def _get_token_at_creation(
             cls,
             address: ChecksumAddress,
-            w3: AsyncWeb3,
+            w3: AsyncWeb3[Any],
             smart_rate_limiter: Optional[SmartRateLimiter] = None) -> Token:
         erc20 = w3.eth.contract(address, abi=erc20_abi)
         symbol, decimals = await asyncio.gather(
