@@ -61,7 +61,8 @@ coverage run -m pytest tests && coverage report -m && coverage json
 `tox -e coverage`, ...). See `tox.ini`.
 
 Unit tests are **live-network tests**: they hit mainnet Uniswap contracts and require `RPC_ENDPOINT`. Do not "fix"
-them by mocking RPC calls — that would change what they are for.
+them by mocking RPC calls — that would change what they are for. Targeted patches for an error path (ex:
+`_contract_function_call` raising `asyncio.TimeoutError`) are fine.
 
 ## Ground rules (from the UR SDK's CONTRIBUTING.md)
 
@@ -70,11 +71,10 @@ them by mocking RPC calls — that would change what they are for.
 - Put constants and ABIs in `_constants.py`; do not expose what should stay private.
 - A new or changed public API must be documented in its docstring **and** in `README.md`, including the
   `Release notes` section at the top of the README.
-- Keep coverage from regressing (it is currently 99%; see `coverage.json`); regenerate `coverage.json` with
-  `coverage json` before committing.
+- Keep coverage at 100%; regenerate `coverage.json` with `coverage json` before committing.
 - Update integration tests when a change affects live behaviour.
 - Pin GitHub Actions to full commit SHAs, with the version as a trailing comment (ex:
-  `uses: actions/checkout@<sha>  # v4`).
+  `uses: actions/checkout@<sha>  # v7.0.1`).
 - Squash commits so that 1 PR = 1 commit, with a clear message.
 
 ## Style specifics of this codebase
@@ -92,7 +92,7 @@ them by mocking RPC calls — that would change what they are for.
   ```python
   async def create(
           cls,
-          w3: Optional[AsyncWeb3] = None,
+          w3: Optional[AsyncWeb3[Any]] = None,
           ...
   ```
 - **Docstrings** are reST: a short summary, then `:param name:` and `:return:`. No blank line before the closing
