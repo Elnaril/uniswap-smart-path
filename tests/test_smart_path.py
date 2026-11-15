@@ -1,3 +1,6 @@
+import asyncio
+from unittest.mock import patch
+
 import pytest
 from web3 import Web3
 from web3.exceptions import BadFunctionCallOutput
@@ -46,6 +49,9 @@ async def test_create(w3, rpc_endpoint, uniswapv2_address, uniswapv3_quoter_addr
 
     with pytest.raises(ValueError):
         _ = SmartRateLimiter(1, max_credits=40)
+
+    with pytest.raises(ValueError):
+        _ = SmartRateLimiter(1, max_credits=40, method_credits={"eth_call": 20})
 
     with pytest.raises(ValueError):
         _ = SmartRateLimiter(1)
@@ -369,3 +375,17 @@ async def test_create_custom_exception(w3):
             v2_router=const.uniswapv2_address,
             smart_rate_limiter=credit_limiter,
         )
+
+
+async def test_pool_exist_timeout(w3):
+    smart_path = SmartPath(w3)
+    with patch.object(smart_path, "_contract_function_call", side_effect=asyncio.TimeoutError):
+        assert await smart_path._v2_pool_exist(tokens["WETH"], tokens["USDC"]) is False
+        assert await smart_path._v3_pool_exist(tokens["WETH"], tokens["USDC"], 3000) is False
+
+
+async def test_rate_limited_call_invalid_limiter(w3):
+    smart_rate_limiter = SmartRateLimiter(1, max_credits=40, method_credits={"eth_call": 20, "eth_chainId": 20})
+    smart_rate_limiter.method_credits = None
+    with pytest.raises(ValueError):
+        await SmartPath._get_chain_id(w3, smart_rate_limiter)

@@ -495,12 +495,10 @@ class SmartPath:
         elif len(v2_mixed_paths) == 0:
             return v3_mixed_paths[0].output()
         else:
-            if v2_mixed_paths[0].total_value > v3_mixed_paths[0].total_value:
-                lower_value_path = v3_mixed_paths[0]
-                higher_value_path = v2_mixed_paths[0]
-            else:
-                lower_value_path = v2_mixed_paths[0]
-                higher_value_path = v3_mixed_paths[0]
+            lower_value_path, higher_value_path = sorted(
+                (v2_mixed_paths[0], v3_mixed_paths[0]),
+                key=lambda mp: mp.total_value,
+            )
 
             all_mixed_paths = self._get_all_mixed_path(lower_value_path, higher_value_path)
             computing_value_coros = [path.compute_path_values(amount) for path in all_mixed_paths]
