@@ -12,6 +12,7 @@ on:
       - '.gitignore'
       - 'coverage.json'
       - 'media/**'
+      - 'scripts/**'
   pull_request:
     paths-ignore:
       - 'AGENTS.md'
@@ -23,6 +24,7 @@ on:
       - '.gitignore'
       - 'coverage.json'
       - 'media/**'
+      - 'scripts/**'
 
 jobs:
   build:

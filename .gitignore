@@ -10,6 +10,7 @@ uniswap_smart_path.egg-info/
 
 analysis/
 notes/
+scripts/results*
 
 .coverage
 .mypy_cache
