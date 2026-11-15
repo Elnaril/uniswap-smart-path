@@ -73,6 +73,8 @@ them by mocking RPC calls — that would change what they are for.
 - Keep coverage from regressing (it is currently 99%; see `coverage.json`); regenerate `coverage.json` with
   `coverage json` before committing.
 - Update integration tests when a change affects live behaviour.
+- Pin GitHub Actions to full commit SHAs, with the version as a trailing comment (ex:
+  `uses: actions/checkout@<sha>  # v4`).
 - Squash commits so that 1 PR = 1 commit, with a clear message.
 
 ## Style specifics of this codebase
