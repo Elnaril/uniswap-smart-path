@@ -3,24 +3,26 @@ name: Continous Integration
 on:
   push:
     paths-ignore:
-      - '.github/ISSUE_TEMPLATE'
+      - 'AGENTS.md'
+      - '.github/ISSUE_TEMPLATE/**'
       - 'integration_tests/**'
       - 'tutorials/**'
       - 'README.md'
       - 'LICENSE'
       - '.gitignore'
       - 'coverage.json'
-      - 'media'
+      - 'media/**'
   pull_request:
     paths-ignore:
-      - '.github/ISSUE_TEMPLATE'
+      - 'AGENTS.md'
+      - '.github/ISSUE_TEMPLATE/**'
       - 'integration_tests/**'
       - 'tutorials/**'
       - 'README.md'
       - 'LICENSE'
       - '.gitignore'
       - 'coverage.json'
-      - 'media'
+      - 'media/**'
 
 jobs:
   build:

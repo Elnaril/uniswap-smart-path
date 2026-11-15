@@ -15,6 +15,7 @@ on:
   push:
     branches: [ "master" ]
     paths-ignore:
+      - 'AGENTS.md'
       - '.github/**'
       - 'integration_tests/**'
       - 'tutorials/**'
@@ -22,10 +23,12 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - 'coverage.json'
+      - 'media/**'
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ "master" ]
     paths-ignore:
+      - 'AGENTS.md'
       - '.github/**'
       - 'integration_tests/**'
       - 'tutorials/**'
@@ -33,6 +36,7 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - 'coverage.json'
+      - 'media/**'
 
 jobs:
   analyze:
