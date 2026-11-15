@@ -33,7 +33,7 @@ reference project for style. When this repo does not settle a question, follow t
     decorator.
 - `tests/` — unit tests. `tests/conftest.py` holds the fixtures, the `tokens` dict and the shared `credit_limiter` /
   `count_limiter`.
-- `integration_tests/` — live-RPC scripts (Ethereum, Base, Optimism, BSC) and a Ganache-driven `main.py`.
+- `integration_tests/` — an Anvil-driven `main.py` that forks Ethereum mainnet.
 - `scripts/` — standalone benchmark scripts, not part of the package. `benchmark_uniswap_api.py` compares the Uniswap
   Trading API with `SmartPath`; it needs `RPC_ENDPOINT`, `UNISWAP_API_KEY` and `ETHERSCAN_API_KEY`, and appends to
   `scripts/results_YYYY_MM_DD.log`.
@@ -66,6 +66,13 @@ coverage run -m pytest tests && coverage report -m && coverage json
 Unit tests are **live-network tests**: they hit mainnet Uniswap contracts and require `RPC_ENDPOINT`. Do not "fix"
 them by mocking RPC calls — that would change what they are for. Targeted patches for an error path (ex:
 `_contract_function_call` raising `asyncio.TimeoutError`) are fine.
+
+The Anvil-driven integration test is standalone and not part of the required checks. It needs Foundry's `anvil` and
+`WEB3_HTTP_PROVIDER_URL_ETHEREUM_MAINNET`:
+
+```bash
+python integration_tests/main.py
+```
 
 The Uniswap API benchmark is standalone and not part of the required checks:
 
