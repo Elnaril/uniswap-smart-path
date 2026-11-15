@@ -57,7 +57,7 @@ RPC_ENDPOINT=https://... pytest tests
 coverage run -m pytest tests && coverage report -m && coverage json
 ```
 
-`tox` runs all of the above over Python 3.10, 3.12 and 3.14 × web3 7.15, latest 7 and latest 8 (`tox -e lint-web37`,
+`tox` runs all of the above over Python 3.10, 3.12 and 3.14 × latest web3 7 and latest web3 8 (`tox -e lint-web37`,
 `tox -e coverage`, ...). See `tox.ini`.
 
 Unit tests are **live-network tests**: they hit mainnet Uniswap contracts and require `RPC_ENDPOINT`. Do not "fix"
